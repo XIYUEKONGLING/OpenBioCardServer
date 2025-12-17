@@ -73,6 +73,8 @@ It provides a RESTful API compatible with the OpenBioCard frontend, allowing you
    dotnet run
    ```
    The server will start at `http://localhost:5046` (or the configured port).
+   
+   > Need to configure the OpenBioCard backend address to `http://localhost:5046/classic` (or your other port).
 
 4. **Access Swagger UI**
    Visit `http://localhost:5046/swagger` to view API documentation and debug.

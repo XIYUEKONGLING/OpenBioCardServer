@@ -74,6 +74,8 @@
    dotnet run
    ```
    服务器将启动在 `http://localhost:5046`（或配置的端口）。
+   
+   > 需要配置 OpenBioCard 后端地址为 `http://localhost:5046/classic` （或你的其他端口）。
 
 4. **访问 Swagger UI**
    访问 `http://localhost:5046/swagger` 查看 API 文档并进行调试。
