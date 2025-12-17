@@ -1,0 +1,50 @@
+services:
+  server:
+    image: openbiocard-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openbiocard-server
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      # 数据库连接信息
+      - ConnectionStrings__DefaultConnection=Host=db;Database=openbiocard;Username=postgres;Password=postgres_password_example
+      # 覆盖管理员密码 (**务必修改**)
+      - AuthSettings__RootPassword=change_me_in_production
+      # 允许的前端域名
+      - CorsSettings__AllowedOrigins=http://localhost:5173,https://your-frontend-domain.com
+    ports:
+      - "5046:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - openbiocard-net
+
+  db:
+    image: postgres:16-alpine
+    container_name: openbiocard-db
+    restart: always
+    environment:
+      - POSTGRES_DB=openbiocard
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_password_example
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # 如果不需要外部访问数据库，可以移除此项
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openbiocard-net
+
+volumes:
+  postgres_data:
+
+networks:
+  openbiocard-net:
+    driver: bridge
