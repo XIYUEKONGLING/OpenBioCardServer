@@ -14,9 +14,16 @@ public class UserAccount
     [MaxLength(50)]
     public string Username { get; set; } = string.Empty;
 
+    [MaxLength(256)]
     public string PasswordHash { get; set; } = string.Empty;
+    
+    [MaxLength(256)]
     public string PasswordSalt { get; set; } = string.Empty;
+    
+    [MaxLength(256)]
     public string Token { get; set; } = Guid.NewGuid().ToString();
+    
+    [MaxLength(16)]
     public string Type { get; set; } = "user"; // user, admin, root
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
