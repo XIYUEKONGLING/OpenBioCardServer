@@ -113,8 +113,10 @@
 OpenBioCardServer/
 ├── Controllers/      # API 控制器
 ├── Data/             # EF Core 上下文与迁移
+├── Middlewares/      # 中间件
 ├── Models/           # 数据库实体模型
 ├── Services/         # 业务逻辑 (Auth, User, Admin)
+├── Utilities/        # 工具类
 ├── Program.cs        # 程序入口与依赖注入配置
 ├── appsettings.json  # 配置文件
 └── Dockerfile        # 容器构建文件

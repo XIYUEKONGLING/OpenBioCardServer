@@ -47,6 +47,7 @@ It provides a RESTful API compatible with the OpenBioCard frontend, allowing you
 > **Regarding feature evolution and potential conflicts:**
 >
 > This project aims to build a more robust security system (e.g., introducing email verification codes, TOTP two-factor authentication) and provide additional extended features. Please note that as differentiated features evolve, future versions may partially sacrifice full compatibility with the upstream project.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -112,8 +113,10 @@ This is the easiest way to deploy both the server and a PostgreSQL database.
 OpenBioCardServer/
 ├── Controllers/      # API controllers
 ├── Data/             # EF Core context and migrations
+├── Middlewares/      # Middlewares
 ├── Models/           # Database entity models
 ├── Services/         # Business logic (Auth, User, Admin)
+├── Utilities/        # Utility classes
 ├── Program.cs        # Application entry and dependency injection setup
 ├── appsettings.json  # Configuration file
 └── Dockerfile        # Container build file
