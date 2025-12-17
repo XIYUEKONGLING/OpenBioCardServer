@@ -10,7 +10,10 @@ public class Account
     
     [Required]
     [MaxLength(64)]
-    public string Username { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    
+    [MaxLength(128)]
+    public string EMail { get; set; } = string.Empty;
 
     [MaxLength(256)]
     public string PasswordHash { get; set; } = string.Empty;
