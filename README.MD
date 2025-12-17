@@ -40,13 +40,11 @@ It provides a RESTful API compatible with the OpenBioCard frontend, allowing you
 
 ## ⚠️ Feature Differences
 
-> **Regarding Architectural Differences and Compatibility Configuration:**
+> **Regarding architectural differences and compatibility configuration:**
 >
-> This project is reconstructed based on a relational database, and its underlying data model fundamentally differs from the upstream project. When using it with the frontend of the upstream project, please ensure the API endpoint is configured to `/classic` to enable the compatibility layer.
+> This project is rebuilt based on a relational database, and the underlying data model fundamentally differs from the upstream project. When using it with the frontend of the upstream project, please ensure the API endpoint is configured as `/classic` to enable the compatibility layer.
 
-> **Regarding Functional Evolution and Compatibility Commitment:**
->
-> While building a more robust security system and providing additional extended features, this project will **continue to support compatibility with the upstream frontend through the compatibility layer**, ensuring the frontend portion remains reusable.
+> The compatibility layer will continue to support the frontend part of the upstream project.
 
 ## 🚀 Quick Start
 
