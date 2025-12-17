@@ -44,6 +44,10 @@ It provides a RESTful API compatible with the OpenBioCard frontend, allowing you
 >
 > Due to incomplete upstream API documentation, certain specific fields (such as **Education Background**, **School Experience**, etc.) currently do not support saving.
 
+> **Note on Independent APIs:**
+>
+> Additionally, this project includes independent APIs not present in the upstream project, designed to extend functionality and enhance security.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
