@@ -13,15 +13,21 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // 配置 User 实体
         modelBuilder.Entity<User>(entity =>
         {
-            // 用户名唯一索引
             entity.HasIndex(u => u.Username).IsUnique();
 
             // 配置 JSON 列
             entity.OwnsMany(u => u.Contacts, b => b.ToJson());
-            entity.OwnsMany(u => u.SocialLinks, b => b.ToJson());
+            
+            // SocialLinks 需要特殊配置，因为包含嵌套对象
+            entity.OwnsMany(u => u.SocialLinks, nav =>
+            {
+                nav.ToJson();
+                // 配置 GithubData 作为嵌套的 owned entity
+                nav.OwnsOne(s => s.GithubData);
+            });
+            
             entity.OwnsMany(u => u.Projects, b => b.ToJson());
             entity.OwnsMany(u => u.Gallery, b => b.ToJson());
         });
