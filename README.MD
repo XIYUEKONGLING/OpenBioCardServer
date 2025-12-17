@@ -2,6 +2,8 @@
 
 ✨ Standalone high-performance backend implementation for OpenBioCard ✨
 
+> Note: This project is not affiliated with OpenBioCard official.
+
 ![.NET](https://img.shields.io/badge/.NET-8.0%2B-512BD4?logo=dotnet)
 ![Docker](https://img.shields.io/badge/Docker-Supported-2496ED?logo=docker)
 ![License](https://img.shields.io/badge/license-MIT-green)
