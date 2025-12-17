@@ -11,7 +11,7 @@ public class ClassicCreateUserRequest
     public string Token { get; set; } = string.Empty;
     
     [JsonProperty("newUsername")]
-    public string NewUsername { get; set; } = string.Empty;
+    public string NewUserName { get; set; } = string.Empty;
     
     [JsonProperty("password")]
     public string Password { get; set; } = string.Empty;

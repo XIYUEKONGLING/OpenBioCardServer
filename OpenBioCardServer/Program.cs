@@ -2,7 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenBioCardServer.Configuration;
 using OpenBioCardServer.Data;
+using OpenBioCardServer.Models.Entities;
+using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Services;
+using OpenBioCardServer.Utilities;
 
 namespace OpenBioCardServer;
 
@@ -81,8 +84,8 @@ public class Program
 
             try
             {
-                // 注意：生产环境应该使用迁移而不是 EnsureCreated
-                await context.Database.EnsureCreatedAsync();
+                await context.Database.MigrateAsync();
+                // await context.Database.EnsureCreatedAsync();
                 
                 logger.LogInformation("==> Initialization completed successfully.");
             }
@@ -91,7 +94,51 @@ public class Program
                 logger.LogError(ex, "CRITICAL ERROR during database initialization");
                 throw;
             }
+            
+            // Root user initialization
+            var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+            var rootUsername = config["AuthSettings:RootUsername"];
+            var rootPassword = config["AuthSettings:RootPassword"];
+
+            if (string.IsNullOrEmpty(rootUsername) || string.IsNullOrEmpty(rootPassword))
+            {
+                logger.LogWarning("Root credentials not configured in appsettings");
+            }
+            else
+            {
+                var rootAccount = await context.Accounts
+                    .FirstOrDefaultAsync(a => a.UserName == rootUsername);
+
+                if (rootAccount == null)
+                {
+                    // Create root account
+                    var (hash, salt) = PasswordHasher.HashPassword(rootPassword);
+                    rootAccount = new Account
+                    {
+                        UserName = rootUsername,
+                        PasswordHash = hash,
+                        PasswordSalt = salt,
+                        Type = UserType.Root
+                    };
+
+                    context.Accounts.Add(rootAccount);
+                    await context.SaveChangesAsync();
+        
+                    logger.LogInformation("==> Root user created: {Username}", rootUsername);
+                }
+                else
+                {
+                    // Update root password on every startup
+                    var (hash, salt) = PasswordHasher.HashPassword(rootPassword);
+                    rootAccount.PasswordHash = hash;
+                    rootAccount.PasswordSalt = salt;
+                    await context.SaveChangesAsync();
+        
+                    logger.LogInformation("==> Root password updated for: {Username}", rootUsername);
+                }
+            }
         }
+
 
         if (app.Environment.IsDevelopment())
         {

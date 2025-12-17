@@ -166,7 +166,7 @@ public class ClassicAdminController : ControllerBase
             }
 
             // Check if username already exists
-            if (await _context.Accounts.AnyAsync(a => a.UserName == request.NewUsername))
+            if (await _context.Accounts.AnyAsync(a => a.UserName == request.NewUserName))
             {
                 return Conflict(new { error = "Username already exists" });
             }
@@ -175,7 +175,7 @@ public class ClassicAdminController : ControllerBase
             var (hash, salt) = PasswordHasher.HashPassword(request.Password);
             var newAccount = new Account
             {
-                UserName = request.NewUsername,
+                UserName = request.NewUserName,
                 PasswordHash = hash,
                 PasswordSalt = salt,
                 Type = userType
@@ -188,7 +188,7 @@ public class ClassicAdminController : ControllerBase
             var profile = new ProfileEntity
             {
                 AccountId = newAccount.Id,
-                Username = request.NewUsername,
+                Username = request.NewUserName,
                 AvatarType = AssetType.Text,
                 AvatarText = "👤"
             };
@@ -200,7 +200,7 @@ public class ClassicAdminController : ControllerBase
             var newToken = await _authService.CreateTokenAsync(newAccount);
 
             _logger.LogInformation("Admin {AdminUser} created new user: {NewUser} (Type: {Type})", 
-                request.UserName, request.NewUsername, userType);
+                request.UserName, request.NewUserName, userType);
 
             return Ok(new 
             { 
