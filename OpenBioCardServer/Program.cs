@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenBioCardServer.Configuration;
 using OpenBioCardServer.Data;
+using OpenBioCardServer.Extensions;
 using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Services;
@@ -14,6 +15,11 @@ public class Program
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        
+        // Configuration validation
+        builder.Services.Configure<DatabaseSettings>(
+            builder.Configuration.GetSection(DatabaseSettings.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<DatabaseSettings>, DatabaseSettingsValidator>();
         
         var allowedOrigins = builder.Configuration
             .GetSection("CorsSettings:AllowedOrigins")
@@ -39,21 +45,9 @@ public class Program
             });
         });
 
-        // 数据库配置
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        if (builder.Environment.IsDevelopment())
-        {
-            // 开发环境 SQLite
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlite(connectionString));
-        }
-        else
-        {
-            // 生产环境 PgSQL
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(connectionString));
-        }
-
+        // Database configuration with validation
+        builder.Services.AddDatabaseContext(builder.Configuration);
+        
         builder.Services.AddControllers()
             .AddNewtonsoftJson(options =>
             {
@@ -71,23 +65,52 @@ public class Program
         builder.Services.AddSingleton<IValidateOptions<AssetSettings>, AssetSettingsValidator>();
         
         // Services
-        // builder.Services.AddScoped<...>();
         builder.Services.AddScoped<ClassicAuthService>();
         builder.Services.AddScoped<AuthService>();
 
         var app = builder.Build();
+        
+        // Validate database configuration on startup
+        try
+        {
+            var databaseSettings = app.Services.GetRequiredService<IOptions<DatabaseSettings>>().Value;
+            if (!databaseSettings.IsValid())
+            {
+                throw new InvalidOperationException(
+                    "Database configuration is invalid. Please check your appsettings.json file.");
+            }
+            
+            Console.WriteLine($"==> Using database type: {databaseSettings.Type}");
+            Console.WriteLine($"==> Connection string: {databaseSettings.ConnectionString[..Math.Min(50, databaseSettings.ConnectionString.Length)]}...");
+        }
+        catch (OptionsValidationException ex)
+        {
+            Console.WriteLine("==> CRITICAL ERROR: Database configuration validation failed:");
+            foreach (var failure in ex.Failures)
+            {
+                Console.WriteLine($"    - {failure}");
+            }
+            throw;
+        }
 
         using (var scope = app.Services.CreateScope())
         {
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
             try
             {
+                logger.LogInformation("==> Database initialization started...");
+                
+                // Log database type being used
+                var databaseType = context.GetDatabaseType();
+                logger.LogInformation("==> Database type: {DatabaseType}", databaseType);
+                
                 await context.Database.EnsureCreatedAsync();
                 await context.Database.MigrateAsync();
                 
-                logger.LogInformation("==> Initialization completed successfully.");
+                logger.LogInformation("==> Database initialization completed successfully.");
             }
             catch (Exception ex)
             {
@@ -96,9 +119,8 @@ public class Program
             }
             
             // Root user initialization
-            var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-            var rootUsername = config["AuthSettings:RootUsername"];
-            var rootPassword = config["AuthSettings:RootPassword"];
+            var rootUsername = configuration["AuthSettings:RootUsername"];
+            var rootPassword = configuration["AuthSettings:RootPassword"];
 
             if (string.IsNullOrEmpty(rootUsername) || string.IsNullOrEmpty(rootPassword))
             {
@@ -138,7 +160,6 @@ public class Program
                 }
             }
         }
-
 
         if (app.Environment.IsDevelopment())
         {

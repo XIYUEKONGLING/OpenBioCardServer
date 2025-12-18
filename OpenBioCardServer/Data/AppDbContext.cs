@@ -5,7 +5,13 @@ namespace OpenBioCardServer.Data;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    private readonly string _databaseType;
+    
+    public AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration) 
+        : base(options)
+    {
+        _databaseType = configuration.GetValue<string>("DatabaseSettings:Type") ?? "SQLite";
+    }
 
     // DbSets
     public DbSet<Account> Accounts => Set<Account>();
@@ -90,11 +96,19 @@ public class AppDbContext : DbContext
         });
 
         // SocialLinkItem JSON column configuration
-        // PostgreSQL uses jsonb, SQLite uses text
         modelBuilder.Entity<SocialLinkItemEntity>(entity =>
         {
+            var columnType = _databaseType.ToUpperInvariant() switch
+            {
+                "PGSQL" => "jsonb",
+                "MYSQL" => "json",
+                _ => "text" // SQLite and default
+            };
+            
             entity.Property(e => e.AttributesJson)
-                .HasColumnType(Database.IsNpgsql() ? "jsonb" : "text");
+                .HasColumnType(columnType);
         });
     }
+    
+    public string GetDatabaseType() => _databaseType;
 }
