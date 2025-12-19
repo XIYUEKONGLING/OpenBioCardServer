@@ -66,7 +66,8 @@ public static class ClassicMapper
         {
             try
             {
-                githubData = JsonSerializer.Deserialize<Dictionary<string, object>>(s.AttributesJson);
+                using var doc = JsonDocument.Parse(s.AttributesJson);
+                githubData = ConvertJsonElementToObject(doc.RootElement) as Dictionary<string, object>;
             }
             catch { /* Ignore deserialization errors */ }
         }
@@ -78,6 +79,29 @@ public static class ClassicMapper
             GithubData = githubData
         };
     }
+    
+    // Convert JsonElement to actual .NET types
+    private static object? ConvertJsonElementToObject(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => element.EnumerateObject()
+                .ToDictionary(
+                    prop => prop.Name,
+                    prop => ConvertJsonElementToObject(prop.Value)!
+                ),
+            JsonValueKind.Array => element.EnumerateArray()
+                .Select(ConvertJsonElementToObject)
+                .ToList(),
+            JsonValueKind.String => element.GetString()!,
+            JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => null
+        };
+    }
+
 
     private static ClassicProject ToClassicProject(ProjectItemEntity p) => new()
     {
