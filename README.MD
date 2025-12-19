@@ -8,7 +8,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Supported-2496ED?logo=docker)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-[English](./README.MD) | [📚 API Documentation](./DOCUMENTS.zh-CN.MD)
+[简体中文](./README.zh-CN.MD) | [📚 API Documentation](./DOCUMENTS.MD)
 
 ## 📋 Table of Contents
 
