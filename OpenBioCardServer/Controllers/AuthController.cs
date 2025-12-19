@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Models.DTOs.Auth;
@@ -31,6 +32,7 @@ public class AuthController : ControllerBase
     /// 用户注册
     /// </summary>
     [HttpPost("signup")]
+    [EnableRateLimiting("login")]
     public async Task<ActionResult<TokenResponse>> SignUp([FromBody] SignUpRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || 
@@ -70,6 +72,7 @@ public class AuthController : ControllerBase
     /// 用户登录
     /// </summary>
     [HttpPost("signin")]
+    [EnableRateLimiting("login")]
     public async Task<ActionResult<TokenResponse>> SignIn([FromBody] SignInRequest request)
     {
         var account = await _authService.FindAccountByUsernameAsync(request.Username);

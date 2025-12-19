@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Models.DTOs.Classic;
@@ -34,6 +35,7 @@ public class ClassicAuthController : ControllerBase
     /// User registration
     /// </summary>
     [HttpPost("signup/create")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> SignUp([FromBody] ClassicSignUpRequest request)
     {
         try
@@ -108,6 +110,7 @@ public class ClassicAuthController : ControllerBase
     /// User login
     /// </summary>
     [HttpPost("signin")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> SignIn([FromBody] ClassicSignInRequest request)
     {
         try

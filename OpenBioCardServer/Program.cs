@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenBioCardServer.Configuration;
@@ -43,6 +45,33 @@ public class Program
                         .AllowCredentials(); 
                 }
             });
+        });
+
+        // Rate Limiting
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddFixedWindowLimiter("login", limiterOptions =>
+            {
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.PermitLimit = 10;
+                limiterOptions.QueueLimit = 0;
+            });
+
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                context.HttpContext.Response.ContentType = "application/json";
+                
+                var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfterValue)
+                    ? (int)retryAfterValue.TotalSeconds
+                    : 60;
+
+                await context.HttpContext.Response.WriteAsJsonAsync(new
+                {
+                    error = "Too many requests. Please try again later.",
+                    retryAfter
+                }, cancellationToken);
+            };
         });
 
         // Database configuration with validation
@@ -167,6 +196,7 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+        app.UseRateLimiter();
         app.UseCors("AllowFrontend");
         app.UseAuthorization();
         app.MapControllers();
