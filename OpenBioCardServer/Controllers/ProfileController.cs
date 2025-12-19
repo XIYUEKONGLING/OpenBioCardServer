@@ -33,6 +33,7 @@ public class ProfileController : ControllerBase
     public async Task<ActionResult<ProfileDto>> GetProfile(string username)
     {
         var profile = await _context.Profiles
+            .AsNoTracking()
             .AsSplitQuery()
             .Include(p => p.Contacts)
             .Include(p => p.SocialLinks)
@@ -69,12 +70,6 @@ public class ProfileController : ControllerBase
             }
 
             var profile = await _context.Profiles
-                .Include(p => p.Contacts)
-                .Include(p => p.SocialLinks)
-                .Include(p => p.Projects)
-                .Include(p => p.WorkExperiences)
-                .Include(p => p.SchoolExperiences)
-                .Include(p => p.Gallery)
                 .FirstOrDefaultAsync(p => p.Username == username);
 
             if (profile == null)
@@ -82,11 +77,11 @@ public class ProfileController : ControllerBase
                 return NotFound(new { error = "Profile not found" });
             }
 
-            // 更新基本资料
             DataMapper.UpdateProfileEntity(profile, request);
 
-            // 清除并替换所有子项
-            await ReplaceCollectionItemsAsync(profile, request);
+            await CleanupCollectionsAsync(profile.Id);
+
+            await AddNewCollectionsAsync(profile, request);
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -101,7 +96,6 @@ public class ProfileController : ControllerBase
             return StatusCode(500, new { error = "Profile update failed" });
         }
     }
-
 
     /// <summary>
     /// 获取当前登录用户的资料（私有）
@@ -122,6 +116,7 @@ public class ProfileController : ControllerBase
         }
 
         var profile = await _context.Profiles
+            .AsNoTracking()
             .AsSplitQuery()
             .Include(p => p.Contacts)
             .Include(p => p.SocialLinks)
@@ -139,57 +134,79 @@ public class ProfileController : ControllerBase
         return DataMapper.ToProfileDto(profile);
     }
 
-    private async Task ReplaceCollectionItemsAsync(ProfileEntity profile, ProfileDto dto)
-    {
-        // 清除现有集合
-        _context.ContactItems.RemoveRange(profile.Contacts);
-        _context.SocialLinkItems.RemoveRange(profile.SocialLinks);
-        _context.ProjectItems.RemoveRange(profile.Projects);
-        _context.WorkExperienceItems.RemoveRange(profile.WorkExperiences);
-        _context.SchoolExperienceItems.RemoveRange(profile.SchoolExperiences);
-        _context.GalleryItems.RemoveRange(profile.Gallery);
 
-        // 添加新的集合
+    private async Task CleanupCollectionsAsync(Guid profileId)
+    {
+        await _context.ContactItems
+            .Where(x => x.ProfileId == profileId)
+            .ExecuteDeleteAsync();
+            
+        await _context.SocialLinkItems
+            .Where(x => x.ProfileId == profileId)
+            .ExecuteDeleteAsync();
+            
+        await _context.ProjectItems
+            .Where(x => x.ProfileId == profileId)
+            .ExecuteDeleteAsync();
+            
+        await _context.WorkExperienceItems
+            .Where(x => x.ProfileId == profileId)
+            .ExecuteDeleteAsync();
+            
+        await _context.SchoolExperienceItems
+            .Where(x => x.ProfileId == profileId)
+            .ExecuteDeleteAsync();
+            
+        await _context.GalleryItems
+            .Where(x => x.ProfileId == profileId)
+            .ExecuteDeleteAsync();
+    }
+
+    /// <summary>
+    /// 将 DTO 转换为实体并添加到 Context
+    /// </summary>
+    private async Task AddNewCollectionsAsync(ProfileEntity profile, ProfileDto dto)
+    {
         if (dto.Contacts?.Any() == true)
         {
             var contacts = dto.Contacts
                 .Select(c => DataMapper.ToContactItemEntity(c, profile.Id));
-            _context.ContactItems.AddRange(contacts);
+            await _context.ContactItems.AddRangeAsync(contacts);
         }
 
         if (dto.SocialLinks?.Any() == true)
         {
             var socialLinks = dto.SocialLinks
                 .Select(s => DataMapper.ToSocialLinkItemEntity(s, profile.Id));
-            _context.SocialLinkItems.AddRange(socialLinks);
+            await _context.SocialLinkItems.AddRangeAsync(socialLinks);
         }
 
         if (dto.Projects?.Any() == true)
         {
             var projects = dto.Projects
                 .Select(p => DataMapper.ToProjectItemEntity(p, profile.Id));
-            _context.ProjectItems.AddRange(projects);
+            await _context.ProjectItems.AddRangeAsync(projects);
         }
 
         if (dto.WorkExperiences?.Any() == true)
         {
             var workExperiences = dto.WorkExperiences
                 .Select(w => DataMapper.ToWorkExperienceItemEntity(w, profile.Id));
-            _context.WorkExperienceItems.AddRange(workExperiences);
+            await _context.WorkExperienceItems.AddRangeAsync(workExperiences);
         }
 
         if (dto.SchoolExperiences?.Any() == true)
         {
             var schoolExperiences = dto.SchoolExperiences
                 .Select(s => DataMapper.ToSchoolExperienceItemEntity(s, profile.Id));
-            _context.SchoolExperienceItems.AddRange(schoolExperiences);
+            await _context.SchoolExperienceItems.AddRangeAsync(schoolExperiences);
         }
 
         if (dto.Gallery?.Any() == true)
         {
             var gallery = dto.Gallery
                 .Select(g => DataMapper.ToGalleryItemEntity(g, profile.Id));
-            _context.GalleryItems.AddRange(gallery);
+            await _context.GalleryItems.AddRangeAsync(gallery);
         }
     }
 

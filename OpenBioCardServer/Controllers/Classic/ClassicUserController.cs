@@ -34,6 +34,7 @@ public class ClassicUserController : ControllerBase
         try
         {
             var profile = await _context.Profiles
+                .AsNoTracking()
                 .AsSplitQuery()
                 .Include(p => p.Contacts)
                 .Include(p => p.SocialLinks)
@@ -91,12 +92,6 @@ public class ClassicUserController : ControllerBase
 
             var profile = await _context.Profiles
                 .AsTracking()
-                .Include(p => p.Contacts)
-                .Include(p => p.SocialLinks)
-                .Include(p => p.Projects)
-                .Include(p => p.WorkExperiences)
-                .Include(p => p.SchoolExperiences)
-                .Include(p => p.Gallery)
                 .FirstOrDefaultAsync(p => p.Username == username);
 
             if (profile == null)
