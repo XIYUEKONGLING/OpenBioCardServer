@@ -54,6 +54,8 @@
 
 ### 本地开发
 
+#### 后端部分
+
 1. **克隆仓库**
 
 2. **检查配置**
@@ -76,6 +78,33 @@
 
 4. **访问 Swagger UI**
    访问 `http://localhost:5046/swagger` 查看 API 文档并进行调试。
+
+#### 前端部分
+
+1. **克隆仓库** `https://github.com/OpenBioCard/OpenBioCard.git`
+
+2. **安装依赖** 
+
+   ```bash
+   $ pnpm install
+   ```
+
+3. 更改前端 API 端点 （或者**直接更改源代码文件中硬编码的部分**）
+
+   ```bash
+   $ vim apps/frontend/.env.local
+   ```
+
+   ```env
+   VITE_API_BASE_URL=http://localhost:5046/classic
+   ```
+   
+4. 启动应用
+
+   ```bash
+   $ cd apps/frontend
+   $ pnpm dev
+   ```
 
 ## ⚙️ 环境配置
 
@@ -134,4 +163,3 @@ OpenBioCardServer/
 本项目采用 MIT 许可证。
 
 ---
-```

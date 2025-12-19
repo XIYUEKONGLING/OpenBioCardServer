@@ -54,6 +54,8 @@ It provides RESTful APIs compatible with the OpenBioCard frontend, allowing you 
 
 ### Local Development
 
+#### Backend
+
 1. **Clone the repository**
 
 2. **Check configuration**
@@ -76,6 +78,33 @@ It provides RESTful APIs compatible with the OpenBioCard frontend, allowing you 
 
 4. **Access Swagger UI**
    Visit `http://localhost:5046/swagger` to view API documentation and perform debugging.
+
+#### Frontend
+
+1. **Clone the repository** `https://github.com/OpenBioCard/OpenBioCard.git`
+
+2. **Install dependencies**
+
+   ```bash
+   $ pnpm install
+   ```
+
+3. Change the frontend API endpoint (or **directly modify the hardcoded parts in the source code**)
+
+   ```bash
+   $ vim apps/frontend/.env.local
+   ```
+
+   ```env
+   VITE_API_BASE_URL=http://localhost:5046/classic
+   ```
+
+4. Start the application
+
+   ```bash
+   $ cd apps/frontend
+   $ pnpm dev
+   ```
 
 ## ⚙️ Environment Configuration
 
