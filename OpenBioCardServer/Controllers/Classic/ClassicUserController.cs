@@ -34,6 +34,7 @@ public class ClassicUserController : ControllerBase
         try
         {
             var profile = await _context.Profiles
+                .AsSplitQuery()
                 .Include(p => p.Contacts)
                 .Include(p => p.SocialLinks)
                 .Include(p => p.Projects)
@@ -87,6 +88,7 @@ public class ClassicUserController : ControllerBase
             }
 
             var profile = await _context.Profiles
+                .AsTracking()
                 .Include(p => p.Contacts)
                 .Include(p => p.SocialLinks)
                 .Include(p => p.Projects)
@@ -102,50 +104,75 @@ public class ClassicUserController : ControllerBase
 
             // Update basic profile fields
             ClassicMapper.UpdateProfileFromClassic(profile, request);
-
+            
             // Clear all existing collections (we'll replace them completely)
-            _context.ContactItems.RemoveRange(profile.Contacts);
-            _context.SocialLinkItems.RemoveRange(profile.SocialLinks);
-            _context.ProjectItems.RemoveRange(profile.Projects);
-            _context.WorkExperienceItems.RemoveRange(profile.WorkExperiences);
-            _context.SchoolExperienceItems.RemoveRange(profile.SchoolExperiences);
-            _context.GalleryItems.RemoveRange(profile.Gallery);
+            // _context.ContactItems.RemoveRange(profile.Contacts);
+            // _context.SocialLinkItems.RemoveRange(profile.SocialLinks);
+            // _context.ProjectItems.RemoveRange(profile.Projects);
+            // _context.WorkExperienceItems.RemoveRange(profile.WorkExperiences);
+            // _context.SchoolExperienceItems.RemoveRange(profile.SchoolExperiences);
+            // _context.GalleryItems.RemoveRange(profile.Gallery);
+
+
+            await _context.ContactItems
+                .Where(c => c.ProfileId == profile.Id)
+                .ExecuteDeleteAsync();
+            
+            await _context.SocialLinkItems
+                .Where(s => s.ProfileId == profile.Id)
+                .ExecuteDeleteAsync();
+                
+            await _context.ProjectItems
+                .Where(p => p.ProfileId == profile.Id)
+                .ExecuteDeleteAsync();
+                
+            await _context.WorkExperienceItems
+                .Where(w => w.ProfileId == profile.Id)
+                .ExecuteDeleteAsync();
+                
+            await _context.SchoolExperienceItems
+                .Where(s => s.ProfileId == profile.Id)
+                .ExecuteDeleteAsync();
+                
+            await _context.GalleryItems
+                .Where(g => g.ProfileId == profile.Id)
+                .ExecuteDeleteAsync();
 
             // Add new collections from request
             if (request.Contacts?.Any() == true)
             {
                 var contacts = ClassicMapper.ToContactEntities(request.Contacts, profile.Id);
-                _context.ContactItems.AddRange(contacts);
+                await _context.ContactItems.AddRangeAsync(contacts);
             }
 
             if (request.SocialLinks?.Any() == true)
             {
                 var socialLinks = ClassicMapper.ToSocialLinkEntities(request.SocialLinks, profile.Id);
-                _context.SocialLinkItems.AddRange(socialLinks);
+                await _context.SocialLinkItems.AddRangeAsync(socialLinks);
             }
 
             if (request.Projects?.Any() == true)
             {
                 var projects = ClassicMapper.ToProjectEntities(request.Projects, profile.Id);
-                _context.ProjectItems.AddRange(projects);
+                await _context.ProjectItems.AddRangeAsync(projects);
             }
 
             if (request.WorkExperiences?.Any() == true)
             {
                 var workExperiences = ClassicMapper.ToWorkExperienceEntities(request.WorkExperiences, profile.Id);
-                _context.WorkExperienceItems.AddRange(workExperiences);
+                await _context.WorkExperienceItems.AddRangeAsync(workExperiences);
             }
 
             if (request.SchoolExperiences?.Any() == true)
             {
                 var schoolExperiences = ClassicMapper.ToSchoolExperienceEntities(request.SchoolExperiences, profile.Id);
-                _context.SchoolExperienceItems.AddRange(schoolExperiences);
+                await _context.SchoolExperienceItems.AddRangeAsync(schoolExperiences);
             }
 
             if (request.Gallery?.Any() == true)
             {
                 var gallery = ClassicMapper.ToGalleryEntities(request.Gallery, profile.Id);
-                _context.GalleryItems.AddRange(gallery);
+                await _context.GalleryItems.AddRangeAsync(gallery);
             }
 
             await _context.SaveChangesAsync();

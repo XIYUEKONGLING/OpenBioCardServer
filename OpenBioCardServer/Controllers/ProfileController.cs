@@ -33,6 +33,7 @@ public class ProfileController : ControllerBase
     public async Task<ActionResult<ProfileDto>> GetProfile(string username)
     {
         var profile = await _context.Profiles
+            .AsSplitQuery()
             .Include(p => p.Contacts)
             .Include(p => p.SocialLinks)
             .Include(p => p.Projects)
@@ -108,6 +109,7 @@ public class ProfileController : ControllerBase
         }
 
         var profile = await _context.Profiles
+            .AsSplitQuery()
             .Include(p => p.Contacts)
             .Include(p => p.SocialLinks)
             .Include(p => p.Projects)
