@@ -22,7 +22,7 @@ public class AuthService
         _logger = logger;
     }
 
-    public async Task<(bool isValid, Account? account)> ValidateTokenAsync(string token)
+    public async Task<(bool isValid, Account? account)> ValidateTokenAsync(string? token)
     {
         if (string.IsNullOrWhiteSpace(token))
             return (false, null);

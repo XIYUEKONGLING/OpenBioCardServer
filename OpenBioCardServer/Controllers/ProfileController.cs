@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenBioCardServer.Data;
+using OpenBioCardServer.Interfaces;
 using OpenBioCardServer.Models.DTOs;
 using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Services;
@@ -14,17 +15,24 @@ public class ProfileController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly AuthService _authService;
+    private readonly ICacheService _cacheService;
     private readonly ILogger<ProfileController> _logger;
 
     public ProfileController(
         AppDbContext context,
         AuthService authService,
+        ICacheService cacheService,
         ILogger<ProfileController> logger)
     {
         _context = context;
         _authService = authService;
+        _cacheService = cacheService;
         _logger = logger;
     }
+
+    // 生成统一的 Cache Key
+    private static string GetProfileCacheKey(string username) => 
+        $"Profile:{username.Trim().ToLowerInvariant()}";
 
     /// <summary>
     /// 获取用户资料（公开）
@@ -32,23 +40,38 @@ public class ProfileController : ControllerBase
     [HttpGet("{username}")]
     public async Task<ActionResult<ProfileDto>> GetProfile(string username)
     {
-        var profile = await _context.Profiles
-            .AsNoTracking()
-            .AsSplitQuery()
-            .Include(p => p.Contacts)
-            .Include(p => p.SocialLinks)
-            .Include(p => p.Projects)
-            .Include(p => p.WorkExperiences)
-            .Include(p => p.SchoolExperiences)
-            .Include(p => p.Gallery)
-            .FirstOrDefaultAsync(p => p.Username == username);
+        string cacheKey = GetProfileCacheKey(username);
 
-        if (profile == null)
+        try
         {
-            return NotFound(new { error = "User not found" });
-        }
+            var profileDto = await _cacheService.GetOrCreateAsync(cacheKey, async () =>
+            {
+                var profile = await _context.Profiles
+                    .AsNoTracking()
+                    .AsSplitQuery()
+                    .Include(p => p.Contacts)
+                    .Include(p => p.SocialLinks)
+                    .Include(p => p.Projects)
+                    .Include(p => p.WorkExperiences)
+                    .Include(p => p.SchoolExperiences)
+                    .Include(p => p.Gallery)
+                    .FirstOrDefaultAsync(p => p.Username == username);
 
-        return DataMapper.ToProfileDto(profile);
+                return profile == null ? null : DataMapper.ToProfileDto(profile);
+            });
+
+            if (profileDto == null)
+            {
+                return NotFound(new { error = "User not found" });
+            }
+
+            return profileDto;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving profile for user: {Username}", username);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
     }
 
     /// <summary>
@@ -85,6 +108,9 @@ public class ProfileController : ControllerBase
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            // Invalidate cache
+            await _cacheService.RemoveAsync(GetProfileCacheKey(username));
 
             _logger.LogInformation("Profile updated for user: {Username}", username);
             return Ok(new { success = true });
@@ -133,7 +159,6 @@ public class ProfileController : ControllerBase
 
         return DataMapper.ToProfileDto(profile);
     }
-
 
     private async Task CleanupCollectionsAsync(Guid profileId)
     {
