@@ -11,4 +11,5 @@ public class CacheSettings
     public long? CacheSizeLimit { get; set; }
     public int ExpirationMinutes { get; set; } = 30;
     public int SlidingExpirationMinutes { get; set; } = 5;
+    public double CompactionPercentage { get; set; } = 0.2;
 }

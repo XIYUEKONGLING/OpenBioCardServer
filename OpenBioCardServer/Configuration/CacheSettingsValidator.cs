@@ -27,6 +27,11 @@ public class CacheSettingsValidator : IValidateOptions<CacheSettings>
         {
             failures.Add("SlidingExpirationMinutes must be greater than 0.");
         }
+        
+        if (options.CompactionPercentage < 0 || options.CompactionPercentage > 1)
+        {
+            failures.Add("CompactionPercentage must be between 0 and 1.");
+        }
 
         if (options.UseRedis && string.IsNullOrWhiteSpace(options.RedisConnectionString))
         {

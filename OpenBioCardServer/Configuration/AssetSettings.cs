@@ -5,6 +5,8 @@ namespace OpenBioCardServer.Configuration;
 /// </summary>
 public class AssetSettings
 {
+    public const string SectionName = "AssetSettings";
+    
     /// <summary>
     /// 最大文件大小（字节）
     /// 默认：5MB

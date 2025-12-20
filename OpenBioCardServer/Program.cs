@@ -22,28 +22,50 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         
-        // Configuration validation
-        builder.Services.Configure<DatabaseSettings>(
-            builder.Configuration.GetSection(DatabaseSettings.SectionName));
+        // Configuration Registration & Validation
+        
+        // Database
+        builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection(DatabaseSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<DatabaseSettings>, DatabaseSettingsValidator>();
         
-        var allowedOrigins = builder.Configuration
-            .GetSection("CorsSettings:AllowedOrigins")
-            .Get<string[]>() ?? Array.Empty<string>();
+        // Cache
+        builder.Services.Configure<CacheSettings>(builder.Configuration.GetSection(CacheSettings.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<CacheSettings>, CacheSettingsValidator>();
         
+        // CORS
+        builder.Services.Configure<CorsSettings>(builder.Configuration.GetSection(CorsSettings.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<CorsSettings>, CorsSettingsValidator>();
+        
+        // Compression
+        builder.Services.Configure<CompressionSettings>(builder.Configuration.GetSection(CompressionSettings.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<CompressionSettings>, CompressionSettingsValidator>();
+        
+        // Auth
+        builder.Services.Configure<AuthSettings>(builder.Configuration.GetSection(AuthSettings.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<AuthSettings>, AuthSettingsValidator>();
+        
+        // Assets
+        builder.Services.Configure<AssetSettings>(builder.Configuration.GetSection(AssetSettings.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<AssetSettings>, AssetSettingsValidator>();
+        
+        // Rate Limit
+        builder.Services.Configure<RateLimitSettings>(builder.Configuration.GetSection(RateLimitSettings.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<RateLimitSettings>, RateLimitSettingsValidator>();
+        
+        
+        // CORS Service
+        var corsSettings = builder.Configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>() ?? new CorsSettings();
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("AllowFrontend", policy =>
             {
-                if (allowedOrigins.Contains("*"))
+                if (corsSettings.AllowedOrigins.Contains("*"))
                 {
-                    policy.AllowAnyOrigin()
-                        .AllowAnyHeader()
-                        .AllowAnyMethod();
+                    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
                 }
                 else
                 {
-                    policy.WithOrigins(allowedOrigins)
+                    policy.WithOrigins(corsSettings.AllowedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials(); 
@@ -51,14 +73,15 @@ public class Program
             });
         });
 
-        // Rate Limiting
+        // Rate Limiting Service
+        var rateLimitSettings = builder.Configuration.GetSection(RateLimitSettings.SectionName).Get<RateLimitSettings>() ?? new RateLimitSettings();
         builder.Services.AddRateLimiter(options =>
         {
-            options.AddFixedWindowLimiter("login", limiterOptions =>
+            options.AddFixedWindowLimiter(rateLimitSettings.PolicyName, limiterOptions =>
             {
-                limiterOptions.Window = TimeSpan.FromMinutes(1);
-                limiterOptions.PermitLimit = 10;
-                limiterOptions.QueueLimit = 0;
+                limiterOptions.Window = TimeSpan.FromMinutes(rateLimitSettings.WindowMinutes);
+                limiterOptions.PermitLimit = rateLimitSettings.PermitLimit;
+                limiterOptions.QueueLimit = rateLimitSettings.QueueLimit;
             });
 
             options.OnRejected = async (context, cancellationToken) =>
@@ -78,21 +101,16 @@ public class Program
             };
         });
 
-        // Database configuration with validation
+        // Database Service
         builder.Services.AddDatabaseContext(builder.Configuration);
+
+        // Cache Service
+        var cacheSettings = builder.Configuration.GetSection(CacheSettings.SectionName).Get<CacheSettings>() ?? new CacheSettings();
         
-        builder.Services.Configure<CacheSettings>(
-            builder.Configuration.GetSection(CacheSettings.SectionName));
-        builder.Services.AddSingleton<IValidateOptions<CacheSettings>, CacheSettingsValidator>();
-        
-        var cacheSettings = builder.Configuration.GetSection(CacheSettings.SectionName)
-                                .Get<CacheSettings>() ?? new CacheSettings();
-        
-        // Configure Local Memory Cache (Always available, with OOM protection)
         builder.Services.AddMemoryCache(options =>
         {
             options.SizeLimit = cacheSettings.CacheSizeLimit ?? 100;
-            options.CompactionPercentage = 0.2;
+            options.CompactionPercentage = cacheSettings.CompactionPercentage; // Used from config
         });
 
         if (cacheSettings.UseRedis && !string.IsNullOrEmpty(cacheSettings.RedisConnectionString))
@@ -103,40 +121,25 @@ public class Program
                 options.InstanceName = cacheSettings.InstanceName;
             });
         }
-        
         builder.Services.AddSingleton<ICacheService, CacheService>();
 
-        // Response Compression Configuration
-        var compressionSection = builder.Configuration.GetSection("CompressionSettings");
-        var enableCompression = compressionSection.GetValue<bool>("Enabled", true); // Default to true
-
-        if (enableCompression)
+        // Compression Service
+        var compressionSettings = builder.Configuration.GetSection(CompressionSettings.SectionName).Get<CompressionSettings>() ?? new CompressionSettings();
+        if (compressionSettings.Enabled)
         {
-            var enableForHttps = compressionSection.GetValue<bool>("EnableForHttps", true);
-            var compressionLevelStr = compressionSection.GetValue<string>("Level") ?? "Fastest";
-
-            // Parse Compression Level Enum
-            if (!Enum.TryParse(compressionLevelStr, true, out CompressionLevel compressionLevel))
-            {
-                compressionLevel = CompressionLevel.Fastest;
-            }
-
             builder.Services.AddResponseCompression(options =>
             {
-                options.EnableForHttps = enableForHttps;
+                options.EnableForHttps = compressionSettings.EnableForHttps;
                 options.Providers.Add<BrotliCompressionProvider>();
                 options.Providers.Add<GzipCompressionProvider>();
-                // Optional: Add MIME types if needed, defaults are usually fine for JSON/Text
             });
 
-            // Configure Providers
-            builder.Services.Configure<BrotliCompressionProviderOptions>(options => 
-                options.Level = compressionLevel);
-            
-            builder.Services.Configure<GzipCompressionProviderOptions>(options => 
-                options.Level = compressionLevel);
+            var level = compressionSettings.GetCompressionLevel();
+            builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = level);
+            builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = level);
         }
-
+        
+        // MVC & API
         builder.Services.AddControllers()
             .AddNewtonsoftJson(options =>
             {
@@ -146,60 +149,58 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi(); 
         
-        // Configuration
-        builder.Services.Configure<AssetSettings>(
-            builder.Configuration.GetSection("AssetSettings"));
-        
-        // Configuration Validator
-        builder.Services.AddSingleton<IValidateOptions<AssetSettings>, AssetSettingsValidator>();
-        
-        // Services
+        // App Services
         builder.Services.AddScoped<ClassicAuthService>();
         builder.Services.AddScoped<AuthService>();
         builder.Services.AddHostedService<TokenCleanupService>();
 
         var app = builder.Build();
         
-        // Validate database configuration on startup
+        // Validate ALL configurations on startup (Fail Fast)
         try
         {
-            var databaseSettings = app.Services.GetRequiredService<IOptions<DatabaseSettings>>().Value;
-            if (!databaseSettings.IsValid())
+            var dbSettings = app.Services.GetRequiredService<IOptions<DatabaseSettings>>().Value;
+            if (!dbSettings.IsValid())
             {
                 throw new InvalidOperationException(
                     "Database configuration is invalid. Please check your appsettings.json file.");
             }
             
-            Console.WriteLine($"==> Using database type: {databaseSettings.Type}");
-            Console.WriteLine($"==> Connection string: {databaseSettings.ConnectionString[..Math.Min(50, databaseSettings.ConnectionString.Length)]}...");
+            // Trigger validation for other settings
+            // Accessing .Value triggers the Validator registered earlier
+            _ = app.Services.GetRequiredService<IOptions<CacheSettings>>().Value;
+            _ = app.Services.GetRequiredService<IOptions<AuthSettings>>().Value;
+            _ = app.Services.GetRequiredService<IOptions<CorsSettings>>().Value;
+            _ = app.Services.GetRequiredService<IOptions<AssetSettings>>().Value;
+            _ = app.Services.GetRequiredService<IOptions<RateLimitSettings>>().Value;
+            _ = app.Services.GetRequiredService<IOptions<CompressionSettings>>().Value;
+            
+            Console.WriteLine($"==> Configuration validated.");
+            Console.WriteLine($"==> Using database type: {dbSettings.Type}");
+            Console.WriteLine($"==> Connection string: {dbSettings.ConnectionString[..Math.Min(50, dbSettings.ConnectionString.Length)]}...");
         }
         catch (OptionsValidationException ex)
         {
-            Console.WriteLine("==> CRITICAL ERROR: Database configuration validation failed:");
+            // Console.WriteLine("==> CRITICAL ERROR: Database configuration validation failed:");
+            Console.WriteLine("==> CRITICAL ERROR: Configuration validation failed:");
             foreach (var failure in ex.Failures)
             {
                 Console.WriteLine($"    - {failure}");
             }
-            throw;
+            throw; // Stop application start
         }
 
         using (var scope = app.Services.CreateScope())
         {
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+            var authSettings = scope.ServiceProvider.GetRequiredService<IOptions<AuthSettings>>().Value;
 
             try
             {
                 logger.LogInformation("==> Database initialization started...");
-                
-                // Log database type being used
-                var databaseType = context.GetDatabaseType();
-                logger.LogInformation("==> Database type: {DatabaseType}", databaseType);
-                
                 await context.Database.EnsureCreatedAsync();
                 await context.Database.MigrateAsync();
-                
                 logger.LogInformation("==> Database initialization completed successfully.");
             }
             catch (Exception ex)
@@ -209,50 +210,39 @@ public class Program
             }
             
             // Root user initialization
-            var rootUsername = configuration["AuthSettings:RootUsername"];
-            var rootPassword = configuration["AuthSettings:RootPassword"];
-
-            if (string.IsNullOrEmpty(rootUsername) || string.IsNullOrEmpty(rootPassword))
+            if (string.IsNullOrEmpty(authSettings.RootUsername) || string.IsNullOrEmpty(authSettings.RootPassword))
             {
-                logger.LogWarning("Root credentials not configured in appsettings");
+                logger.LogWarning("Root credentials not configured properly");
             }
             else
             {
                 using var transaction = await context.Database.BeginTransactionAsync();
-                
                 try
                 {
-                    var rootAccount = await context.Accounts
-                        .FirstOrDefaultAsync(a => a.UserName == rootUsername);
+                    var rootAccount = await context.Accounts.FirstOrDefaultAsync(a => a.UserName == authSettings.RootUsername);
 
                     if (rootAccount == null)
                     {
-                        // Create root account
-                        var (hash, salt) = PasswordHasher.HashPassword(rootPassword);
+                        var (hash, salt) = PasswordHasher.HashPassword(authSettings.RootPassword);
                         rootAccount = new Account
                         {
-                            UserName = rootUsername,
+                            UserName = authSettings.RootUsername,
                             PasswordHash = hash,
                             PasswordSalt = salt,
                             Type = UserType.Root
                         };
-
                         context.Accounts.Add(rootAccount);
                         await context.SaveChangesAsync();
-
-                        logger.LogInformation("==> Root user created: {Username}", rootUsername);
+                        logger.LogInformation("==> Root user created: {Username}", authSettings.RootUsername);
                     }
                     else
                     {
-                        // Update root password on every startup
-                        var (hash, salt) = PasswordHasher.HashPassword(rootPassword);
+                        var (hash, salt) = PasswordHasher.HashPassword(authSettings.RootPassword);
                         rootAccount.PasswordHash = hash;
                         rootAccount.PasswordSalt = salt;
                         await context.SaveChangesAsync();
-
-                        logger.LogInformation("==> Root password updated for: {Username}", rootUsername);
+                        logger.LogInformation("==> Root password updated for: {Username}", authSettings.RootUsername);
                     }
-                    
                     await transaction.CommitAsync();
                 }
                 catch (Exception ex)
@@ -304,7 +294,7 @@ public class Program
         app.UseHttpsRedirection();
 
         // Enable Response Compression Middleware
-        if (enableCompression)
+        if (compressionSettings.Enabled)
         {
             app.UseResponseCompression();
         }
