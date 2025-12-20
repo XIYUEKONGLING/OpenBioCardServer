@@ -128,13 +128,17 @@ For environment variables, use double underscores `__` to separate sections (e.g
 | **Compression**| `Enabled` | `CompressionSettings__Enabled` | Enable Gzip/Brotli response compression. | `true` |
 | | `EnableForHttps` | `CompressionSettings__EnableForHttps` | Secure CRIME/BREACH protection flag. | `true` |
 | | `Level` | `CompressionSettings__Level` | Level: `Fastest`, `Optimal`, `NoCompression`, `SmallestSize`. | `Fastest` |
-| **Rate Limit**| `PolicyName` | `RateLimitSettings__PolicyName` | Name of the rate limit policy. | `login` |
-| | `PermitLimit` | `RateLimitSettings__PermitLimit` | Max requests allowed per window. | `10` |
-| | `WindowMinutes` | `RateLimitSettings__WindowMinutes` | Time window duration in minutes. | `1` |
-| | `QueueLimit` | `RateLimitSettings__QueueLimit` | Max queued requests when limit is exceeded. | `0` |
+| **Rate Limit**| `Policies` | `RateLimitSettings__Policies__0__...` | List of rate limit configurations. | `[]` |
+| | `[n].PolicyName` | `...__PolicyName` | **Required**. Name of the policy (e.g., `login`, `general`). | - |
+| | `[n].Type` | `...__Type` | Algorithm: `FixedWindow`, `SlidingWindow`, `TokenBucket`, `Concurrency`. | `FixedWindow` |
+| | `[n].PermitLimit` | `...__PermitLimit` | Max requests allowed per window. | - |
+| | `[n].WindowSeconds` | `...__WindowSeconds` | Time window duration in **seconds**. | - |
+| | `[n].QueueLimit` | `...__QueueLimit` | Max queued requests when limit is exceeded. | `0` |
 | **Assets** | `MaxFileSizeMB` | `AssetSettings__MaxFileSizeMB` | Maximum upload file size in MB. | `5` |
 | | `AllowedImageTypes` | `AssetSettings__AllowedImageTypes` | List of allowed MIME types (JSON array in `appsettings`). | `["image/jpeg", ...]` |
 | **CORS** | `AllowedOrigins` | `CorsSettings__AllowedOrigins` | Allowed origins (e.g., `https://example.com` or `*`). | `[]` |
+
+> **Note:** Since `Policies` is an array, environment variables use index notation (e.g., `RateLimitSettings__Policies__0__PolicyName` for the first policy, `__1__` for the second).
 
 ## 🏗️ Deployment Guide
 

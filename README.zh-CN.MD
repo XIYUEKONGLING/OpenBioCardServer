@@ -128,13 +128,18 @@
 | **压缩** | `Enabled` | `CompressionSettings__Enabled` | 是否启用 Gzip/Brotli 响应压缩。 | `true` |
 | | `EnableForHttps` | `CompressionSettings__EnableForHttps` | 是否在 HTTPS 请求中启用压缩。 | `true` |
 | | `Level` | `CompressionSettings__Level` | 压缩级别：`Fastest` (最快), `Optimal` (最佳), `SmallestSize` (最小体积)。 | `Fastest` |
-| **限流** | `PolicyName` | `RateLimitSettings__PolicyName` | 限流策略名称。 | `login` |
-| | `PermitLimit` | `RateLimitSettings__PermitLimit` | 每个时间窗口允许的最大请求数。 | `10` |
-| | `WindowMinutes` | `RateLimitSettings__WindowMinutes` | 时间窗口长度（分钟）。 | `1` |
-| | `QueueLimit` | `RateLimitSettings__QueueLimit` | 超过限制时允许排队的请求数。 | `0` |
+| **限流** | `Policies` | `RateLimitSettings__Policies__0__...` | 限流策略列表配置。 | `[]` |
+| | `[n].PolicyName` | `...__PolicyName` | **必填**。策略名称（如 `login`, `general`）。 | - |
+| | `[n].Type` | `...__Type` | 算法类型：`FixedWindow`, `SlidingWindow`, `TokenBucket`, `Concurrency`。 | `FixedWindow` |
+| | `[n].PermitLimit` | `...__PermitLimit` | 每个时间窗口允许的最大请求数。 | - |
+| | `[n].WindowSeconds` | `...__WindowSeconds` | 时间窗口长度（单位：**秒**）。 | - |
+| | `[n].QueueLimit` | `...__QueueLimit` | 超过限制时允许排队的请求数。 | `0` |
 | **资源** | `MaxFileSizeMB` | `AssetSettings__MaxFileSizeMB` | 上传文件的最大大小（MB）。 | `5` |
 | | `AllowedImageTypes` | `AssetSettings__AllowedImageTypes` | 允许上传的图片 MIME 类型列表。 | `["image/jpeg", ...]` |
 | **跨域** | `AllowedOrigins` | `CorsSettings__AllowedOrigins` | 允许的前端域名（如 `https://example.com` 或 `*`）。 | `[]` |
+
+
+> **注意：** 由于 `Policies` 是一个数组，环境变量需使用索引格式（例如：`RateLimitSettings__Policies__0__PolicyName` 代表第一个策略，`__1__` 代表第二个）。
 
 ## 🏗️ 部署指南
 
