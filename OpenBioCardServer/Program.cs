@@ -21,39 +21,93 @@ public class Program
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        
-        // Configuration Registration & Validation
-        
+
+        // 1. 注册配置与校验 (Configuration Registration & Validation)
+        RegisterConfigurationSettings(builder);
+
+        // 2. 注册各类服务 (Service Registration)
+        RegisterServices(builder);
+
+        var app = builder.Build();
+
+        // 3. 启动时验证配置 (Validate Configurations on Startup)
+        ValidateAppSettings(app);
+
+        // 4. 初始化数据库与种子数据 (Database Initialization & Seeding)
+        await InitializeApplicationDataAsync(app);
+
+        // 5. 配置 HTTP 请求管道 (Configure Middleware Pipeline)
+        ConfigureMiddleware(app);
+
+        await app.RunAsync();
+    }
+
+    /// <summary>
+    /// 注册配置类及其验证器
+    /// </summary>
+    private static void RegisterConfigurationSettings(WebApplicationBuilder builder)
+    {
         // Database
         builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection(DatabaseSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<DatabaseSettings>, DatabaseSettingsValidator>();
-        
+
         // Cache
         builder.Services.Configure<CacheSettings>(builder.Configuration.GetSection(CacheSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<CacheSettings>, CacheSettingsValidator>();
-        
+
         // CORS
         builder.Services.Configure<CorsSettings>(builder.Configuration.GetSection(CorsSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<CorsSettings>, CorsSettingsValidator>();
-        
+
         // Compression
         builder.Services.Configure<CompressionSettings>(builder.Configuration.GetSection(CompressionSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<CompressionSettings>, CompressionSettingsValidator>();
-        
+
         // Auth
         builder.Services.Configure<AuthSettings>(builder.Configuration.GetSection(AuthSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<AuthSettings>, AuthSettingsValidator>();
-        
+
         // Assets
         builder.Services.Configure<AssetSettings>(builder.Configuration.GetSection(AssetSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<AssetSettings>, AssetSettingsValidator>();
-        
+
         // Rate Limit
         builder.Services.Configure<RateLimitSettings>(builder.Configuration.GetSection(RateLimitSettings.SectionName));
         builder.Services.AddSingleton<IValidateOptions<RateLimitSettings>, RateLimitSettingsValidator>();
+    }
+
+    /// <summary>
+    /// 注册应用程序所需的所有服务
+    /// </summary>
+    private static void RegisterServices(WebApplicationBuilder builder)
+    {
+        ConfigureCorsService(builder);
+        ConfigureRateLimitingService(builder);
         
+        // Database Service
+        builder.Services.AddDatabaseContext(builder.Configuration);
         
-        // CORS Service
+        ConfigureCacheService(builder);
+        ConfigureCompressionService(builder);
+        
+        // MVC & API
+        builder.Services.AddControllers()
+            .AddNewtonsoftJson(options =>
+            {
+                options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+            });
+
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddOpenApi();
+
+        // App Services
+        builder.Services.AddScoped<ClassicAuthService>();
+        builder.Services.AddScoped<AuthService>();
+        builder.Services.AddHostedService<TokenCleanupService>();
+    }
+
+    private static void ConfigureCorsService(WebApplicationBuilder builder)
+    {
         var corsSettings = builder.Configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>() ?? new CorsSettings();
         builder.Services.AddCors(options =>
         {
@@ -68,12 +122,14 @@ public class Program
                     policy.WithOrigins(corsSettings.AllowedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
-                        .AllowCredentials(); 
+                        .AllowCredentials();
                 }
             });
         });
+    }
 
-        // Rate Limiting Service
+    private static void ConfigureRateLimitingService(WebApplicationBuilder builder)
+    {
         var rateLimitSettings = builder.Configuration.GetSection(RateLimitSettings.SectionName).Get<RateLimitSettings>() ?? new RateLimitSettings();
         builder.Services.AddRateLimiter(options =>
         {
@@ -88,7 +144,7 @@ public class Program
             {
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                 context.HttpContext.Response.ContentType = "application/json";
-                
+
                 var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfterValue)
                     ? (int)retryAfterValue.TotalSeconds
                     : 60;
@@ -100,17 +156,16 @@ public class Program
                 }, cancellationToken);
             };
         });
+    }
 
-        // Database Service
-        builder.Services.AddDatabaseContext(builder.Configuration);
-
-        // Cache Service
+    private static void ConfigureCacheService(WebApplicationBuilder builder)
+    {
         var cacheSettings = builder.Configuration.GetSection(CacheSettings.SectionName).Get<CacheSettings>() ?? new CacheSettings();
-        
+
         builder.Services.AddMemoryCache(options =>
         {
             options.SizeLimit = cacheSettings.CacheSizeLimit ?? 100;
-            options.CompactionPercentage = cacheSettings.CompactionPercentage; // Used from config
+            options.CompactionPercentage = cacheSettings.CompactionPercentage;
         });
 
         if (cacheSettings.UseRedis && !string.IsNullOrEmpty(cacheSettings.RedisConnectionString))
@@ -122,8 +177,10 @@ public class Program
             });
         }
         builder.Services.AddSingleton<ICacheService, CacheService>();
+    }
 
-        // Compression Service
+    private static void ConfigureCompressionService(WebApplicationBuilder builder)
+    {
         var compressionSettings = builder.Configuration.GetSection(CompressionSettings.SectionName).Get<CompressionSettings>() ?? new CompressionSettings();
         if (compressionSettings.Enabled)
         {
@@ -138,25 +195,13 @@ public class Program
             builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = level);
             builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = level);
         }
-        
-        // MVC & API
-        builder.Services.AddControllers()
-            .AddNewtonsoftJson(options =>
-            {
-                options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-            });
-            
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddOpenApi(); 
-        
-        // App Services
-        builder.Services.AddScoped<ClassicAuthService>();
-        builder.Services.AddScoped<AuthService>();
-        builder.Services.AddHostedService<TokenCleanupService>();
+    }
 
-        var app = builder.Build();
-        
-        // Validate ALL configurations on startup (Fail Fast)
+    /// <summary>
+    /// 启动时强制验证所有配置，确保配置错误时快速失败
+    /// </summary>
+    private static void ValidateAppSettings(WebApplication app)
+    {
         try
         {
             var dbSettings = app.Services.GetRequiredService<IOptions<DatabaseSettings>>().Value;
@@ -165,23 +210,21 @@ public class Program
                 throw new InvalidOperationException(
                     "Database configuration is invalid. Please check your appsettings.json file.");
             }
-            
+
             // Trigger validation for other settings
-            // Accessing .Value triggers the Validator registered earlier
             _ = app.Services.GetRequiredService<IOptions<CacheSettings>>().Value;
             _ = app.Services.GetRequiredService<IOptions<AuthSettings>>().Value;
             _ = app.Services.GetRequiredService<IOptions<CorsSettings>>().Value;
             _ = app.Services.GetRequiredService<IOptions<AssetSettings>>().Value;
             _ = app.Services.GetRequiredService<IOptions<RateLimitSettings>>().Value;
             _ = app.Services.GetRequiredService<IOptions<CompressionSettings>>().Value;
-            
+
             Console.WriteLine($"==> Configuration validated.");
             Console.WriteLine($"==> Using database type: {dbSettings.Type}");
             Console.WriteLine($"==> Connection string: {dbSettings.ConnectionString[..Math.Min(50, dbSettings.ConnectionString.Length)]}...");
         }
         catch (OptionsValidationException ex)
         {
-            // Console.WriteLine("==> CRITICAL ERROR: Database configuration validation failed:");
             Console.WriteLine("==> CRITICAL ERROR: Configuration validation failed:");
             foreach (var failure in ex.Failures)
             {
@@ -189,103 +232,122 @@ public class Program
             }
             throw; // Stop application start
         }
+    }
 
-        using (var scope = app.Services.CreateScope())
+    /// <summary>
+    /// 初始化数据库结构、Root用户和系统设置
+    /// </summary>
+    private static async Task InitializeApplicationDataAsync(WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var authSettings = scope.ServiceProvider.GetRequiredService<IOptions<AuthSettings>>().Value;
+
+        await InitializeDatabaseAsync(context, logger);
+        await InitializeRootUserAsync(context, authSettings, logger);
+        await InitializeSystemSettingsAsync(context, logger);
+    }
+
+    private static async Task InitializeDatabaseAsync(AppDbContext context, ILogger logger)
+    {
+        try
         {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var authSettings = scope.ServiceProvider.GetRequiredService<IOptions<AuthSettings>>().Value;
+            logger.LogInformation("==> Database initialization started...");
+            await context.Database.EnsureCreatedAsync();
+            await context.Database.MigrateAsync();
+            logger.LogInformation("==> Database initialization completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "CRITICAL ERROR during database initialization");
+            throw;
+        }
+    }
 
-            try
+    private static async Task InitializeRootUserAsync(AppDbContext context, AuthSettings authSettings, ILogger logger)
+    {
+        if (string.IsNullOrEmpty(authSettings.RootUsername) || string.IsNullOrEmpty(authSettings.RootPassword))
+        {
+            logger.LogWarning("Root credentials not configured properly");
+            return;
+        }
+
+        using var transaction = await context.Database.BeginTransactionAsync();
+        try
+        {
+            var rootAccount = await context.Accounts.FirstOrDefaultAsync(a => a.UserName == authSettings.RootUsername);
+
+            if (rootAccount == null)
             {
-                logger.LogInformation("==> Database initialization started...");
-                await context.Database.EnsureCreatedAsync();
-                await context.Database.MigrateAsync();
-                logger.LogInformation("==> Database initialization completed successfully.");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "CRITICAL ERROR during database initialization");
-                throw;
-            }
-            
-            // Root user initialization
-            if (string.IsNullOrEmpty(authSettings.RootUsername) || string.IsNullOrEmpty(authSettings.RootPassword))
-            {
-                logger.LogWarning("Root credentials not configured properly");
+                var (hash, salt) = PasswordHasher.HashPassword(authSettings.RootPassword);
+                rootAccount = new Account
+                {
+                    UserName = authSettings.RootUsername,
+                    PasswordHash = hash,
+                    PasswordSalt = salt,
+                    Type = UserType.Root
+                };
+                context.Accounts.Add(rootAccount);
+                await context.SaveChangesAsync();
+                logger.LogInformation("==> Root user created: {Username}", authSettings.RootUsername);
             }
             else
             {
-                using var transaction = await context.Database.BeginTransactionAsync();
-                try
-                {
-                    var rootAccount = await context.Accounts.FirstOrDefaultAsync(a => a.UserName == authSettings.RootUsername);
-
-                    if (rootAccount == null)
-                    {
-                        var (hash, salt) = PasswordHasher.HashPassword(authSettings.RootPassword);
-                        rootAccount = new Account
-                        {
-                            UserName = authSettings.RootUsername,
-                            PasswordHash = hash,
-                            PasswordSalt = salt,
-                            Type = UserType.Root
-                        };
-                        context.Accounts.Add(rootAccount);
-                        await context.SaveChangesAsync();
-                        logger.LogInformation("==> Root user created: {Username}", authSettings.RootUsername);
-                    }
-                    else
-                    {
-                        var (hash, salt) = PasswordHasher.HashPassword(authSettings.RootPassword);
-                        rootAccount.PasswordHash = hash;
-                        rootAccount.PasswordSalt = salt;
-                        await context.SaveChangesAsync();
-                        logger.LogInformation("==> Root password updated for: {Username}", authSettings.RootUsername);
-                    }
-                    await transaction.CommitAsync();
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    logger.LogError(ex, "Error during root user initialization");
-                    throw;
-                }
+                var (hash, salt) = PasswordHasher.HashPassword(authSettings.RootPassword);
+                rootAccount.PasswordHash = hash;
+                rootAccount.PasswordSalt = salt;
+                await context.SaveChangesAsync();
+                logger.LogInformation("==> Root password updated for: {Username}", authSettings.RootUsername);
             }
-
-            // System settings initialization
-            using var settingsTransaction = await context.Database.BeginTransactionAsync();
-
-            try
-            {
-                var existingSettings = await context.SystemSettings.FindAsync(1);
-                if (existingSettings == null)
-                {
-                    var defaultSettings = new SystemSettingsEntity
-                    {
-                        Id = 1,
-                        Title = SystemSettings.DefaultTitle,
-                        LogoType = null,
-                        LogoText = null,
-                        LogoData = null
-                    };
-
-                    context.SystemSettings.Add(defaultSettings);
-                    await context.SaveChangesAsync();
-
-                    logger.LogInformation("==> Default system settings initialized");
-                }
-                
-                await settingsTransaction.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await settingsTransaction.RollbackAsync();
-                logger.LogError(ex, "Error during system settings initialization");
-                throw;
-            }
+            await transaction.CommitAsync();
         }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            logger.LogError(ex, "Error during root user initialization");
+            throw;
+        }
+    }
 
+    private static async Task InitializeSystemSettingsAsync(AppDbContext context, ILogger logger)
+    {
+        using var settingsTransaction = await context.Database.BeginTransactionAsync();
+        try
+        {
+            var existingSettings = await context.SystemSettings.FindAsync(1);
+            if (existingSettings == null)
+            {
+                var defaultSettings = new SystemSettingsEntity
+                {
+                    Id = 1,
+                    Title = SystemSettings.DefaultTitle,
+                    LogoType = null,
+                    LogoText = null,
+                    LogoData = null
+                };
+
+                context.SystemSettings.Add(defaultSettings);
+                await context.SaveChangesAsync();
+
+                logger.LogInformation("==> Default system settings initialized");
+            }
+
+            await settingsTransaction.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            await settingsTransaction.RollbackAsync();
+            logger.LogError(ex, "Error during system settings initialization");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 配置中间件管道
+    /// </summary>
+    private static void ConfigureMiddleware(WebApplication app)
+    {
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
@@ -293,7 +355,8 @@ public class Program
 
         app.UseHttpsRedirection();
 
-        // Enable Response Compression Middleware
+        // 从 DI 容器中获取配置
+        var compressionSettings = app.Services.GetRequiredService<IOptions<CompressionSettings>>().Value;
         if (compressionSettings.Enabled)
         {
             app.UseResponseCompression();
@@ -303,7 +366,5 @@ public class Program
         app.UseCors("AllowFrontend");
         app.UseAuthorization();
         app.MapControllers();
-        
-        await app.RunAsync();
     }
 }
