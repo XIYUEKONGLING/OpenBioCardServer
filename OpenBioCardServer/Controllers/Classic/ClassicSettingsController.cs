@@ -42,7 +42,7 @@ public class ClassicSettingsController : ControllerBase
             {
                 title = settings?.Title ?? "OpenBioCard",
                 logo = settings?.LogoType.HasValue == true
-                    ? AssetToString(settings.LogoType.Value, settings.LogoText, settings.LogoData)
+                    ? ClassicMapper.AssetToString(settings.LogoType.Value, settings.LogoText, settings.LogoData)
                     : string.Empty
             };
 
@@ -87,7 +87,7 @@ public class ClassicSettingsController : ControllerBase
             {
                 title = settings?.Title ?? "OpenBioCard",
                 logo = settings?.LogoType.HasValue == true
-                    ? AssetToString(settings.LogoType.Value, settings.LogoText, settings.LogoData)
+                    ? ClassicMapper.AssetToString(settings.LogoType.Value, settings.LogoText, settings.LogoData)
                     : string.Empty
             };
 
