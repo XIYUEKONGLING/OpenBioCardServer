@@ -83,7 +83,7 @@ public class Program
         // Cache Configuration (Memory & Redis)
         var cacheSection = builder.Configuration.GetSection("CacheSettings");
         var useRedis = cacheSection.GetValue<bool>("UseRedis");
-        var cacheSizeLimit = cacheSection.GetValue<long?>("ProfileCacheSizeLimit") ?? 100;
+        var cacheSizeLimit = cacheSection.GetValue<long?>("CacheSizeLimit") ?? 100;
         var redisInstanceName = cacheSection.GetValue<string>("InstanceName") ?? "OpenBioCard:";
 
         // Configure Local Memory Cache (Always available, with OOM protection)
