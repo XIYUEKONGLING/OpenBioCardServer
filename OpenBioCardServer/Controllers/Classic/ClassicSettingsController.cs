@@ -23,7 +23,7 @@ public class ClassicSettingsController : ControllerBase
     private readonly ILogger<ClassicSettingsController> _logger;
     
     // 缓存 Key 常量
-    private const string PublicSettingsCacheKey = "System:Settings:Public";
+    private const string PublicSettingsCacheKey = "Classic:System:Settings:Public";
 
     public ClassicSettingsController(
         AppDbContext context,

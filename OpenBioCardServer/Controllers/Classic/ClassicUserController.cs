@@ -35,7 +35,7 @@ public class ClassicUserController : ControllerBase
     
     // 生成统一的 Cache Key
     private static string GetProfileCacheKey(string username) => 
-        $"Profile:{username.Trim().ToLowerInvariant()}";
+        $"Classic:Profile:{username.Trim().ToLowerInvariant()}";
 
     /// <summary>
     /// Get user profile (public endpoint)
