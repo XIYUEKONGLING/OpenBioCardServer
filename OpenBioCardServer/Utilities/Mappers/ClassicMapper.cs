@@ -40,11 +40,36 @@ public static class ClassicMapper
     {
         AssetType.Text => text ?? string.Empty,
         AssetType.Remote => text ?? string.Empty,
-        AssetType.Image => data != null 
-            ? $"data:{ImageHelper.DetectMimeType(data)};base64,{Convert.ToBase64String(data)}" 
-            : string.Empty,
+        AssetType.Style => text ?? string.Empty,
+        AssetType.Image => data != null ? CreateImageDataUrl(data) : string.Empty,
         _ => string.Empty
     };
+
+    private static string CreateImageDataUrl(byte[] data)
+    {
+        var mimeType = ImageHelper.DetectMimeType(data);
+        var base64Length = GetBase64EncodedLength(data.Length);
+        var totalLength = 5 + mimeType.Length + 8 + base64Length; // "data:" + mimeType + ";base64," + base64
+    
+        return string.Create(totalLength, (data, mimeType), static (span, state) =>
+        {
+            var current = span;
+        
+            "data:".AsSpan().CopyTo(current);
+            current = current[5..];
+        
+            state.mimeType.AsSpan().CopyTo(current);
+            current = current[state.mimeType.Length..];
+        
+            ";base64,".AsSpan().CopyTo(current);
+            current = current[8..];
+        
+            Convert.TryToBase64Chars(state.data, current, out _);
+        });
+    }
+
+    private static int GetBase64EncodedLength(int byteLength) => ((byteLength + 2) / 3) * 4;
+
 
     private static ClassicContact ToClassicContact(ContactItemEntity c)
     {
