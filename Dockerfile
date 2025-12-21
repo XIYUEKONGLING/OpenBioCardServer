@@ -1,27 +1,22 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+﻿# syntax=docker/dockerfile:1
+
+ARG DOTNET_VERSION=10.0
+
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
 WORKDIR /src
 
-# Copy csproj and restore as distinct layers
-COPY ["OpenBioCardServer.csproj", "./"]
-RUN dotnet restore "OpenBioCardServer.csproj"
+COPY OpenBioCardServer/OpenBioCardServer.csproj OpenBioCardServer/
+RUN dotnet restore OpenBioCardServer/OpenBioCardServer.csproj
 
-# Copy everything else and build
 COPY . .
-RUN dotnet publish "OpenBioCardServer.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish OpenBioCardServer/OpenBioCardServer.csproj \
+    -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION} AS runtime
 WORKDIR /app
 
-# Create a non-root user for security (optional but recommended)
-# .NET 8 images already include a non-root user 'app', but we stick to default for simplicity
-# unless specific permission requirements exist.
-
-COPY --from=build /app/publish .
-
-# .NET 8 container images listen on port 8080 by default
+ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-# Environment variables can be overridden in docker-compose or run command
-ENV ASPNETCORE_URLS=http://+:8080
-
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "OpenBioCardServer.dll"]
