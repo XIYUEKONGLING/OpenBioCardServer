@@ -3,22 +3,23 @@ using OpenBioCardServer.Data;
 using OpenBioCardServer.Interfaces;
 using OpenBioCardServer.Models.DTOs.Classic;
 using OpenBioCardServer.Utilities.Mappers;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace OpenBioCardServer.Services;
 
 public class ClassicProfileService
 {
     private readonly AppDbContext _context;
-    private readonly ICacheService _cacheService;
+    private readonly IFusionCache _cache; 
     private readonly ILogger<ClassicProfileService> _logger;
 
     public ClassicProfileService(
         AppDbContext context,
-        ICacheService cacheService,
+        IFusionCache cache,
         ILogger<ClassicProfileService> logger)
     {
         _context = context;
-        _cacheService = cacheService;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -32,21 +33,22 @@ public class ClassicProfileService
     {
         var cacheKey = GetProfileCacheKey(username);
 
-        return await _cacheService.GetOrCreateAsync(cacheKey, async () =>
-        {
-            var profile = await _context.Profiles
-                .AsNoTracking()
-                .AsSplitQuery()
-                .Include(p => p.Contacts)
-                .Include(p => p.SocialLinks)
-                .Include(p => p.Projects)
-                .Include(p => p.WorkExperiences)
-                .Include(p => p.SchoolExperiences)
-                .Include(p => p.Gallery)
-                .FirstOrDefaultAsync(p => p.Username == username);
-
-            return profile == null ? null : ClassicMapper.ToClassicProfile(profile);
-        });
+        return await _cache.GetOrSetAsync<ClassicProfile?>(
+            cacheKey, 
+            async (ctx, token) =>
+            {
+                var profile = await _context.Profiles
+                    .AsNoTracking()
+                    .AsSplitQuery()
+                    .Include(p => p.Contacts)
+                    .Include(p => p.SocialLinks)
+                    .Include(p => p.Projects)
+                    .Include(p => p.WorkExperiences)
+                    .Include(p => p.SchoolExperiences)
+                    .Include(p => p.Gallery)
+                    .FirstOrDefaultAsync(p => p.Username == username, token); // 传入 token
+                return profile == null ? null : ClassicMapper.ToClassicProfile(profile);
+            });
     }
 
     /// <summary>
@@ -121,7 +123,7 @@ public class ClassicProfileService
             await transaction.CommitAsync();
 
             // 4. Invalidate Cache
-            await _cacheService.RemoveAsync(GetProfileCacheKey(username));
+            await _cache.RemoveAsync(GetProfileCacheKey(username));
             
             _logger.LogInformation("Profile updated successfully for user: {Username}", username);
             return true;

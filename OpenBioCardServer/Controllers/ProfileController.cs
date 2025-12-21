@@ -6,6 +6,7 @@ using OpenBioCardServer.Models.DTOs;
 using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Services;
 using OpenBioCardServer.Utilities.Mappers;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace OpenBioCardServer.Controllers;
 
@@ -15,13 +16,13 @@ public class ProfileController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly AuthService _authService;
-    private readonly ICacheService _cacheService;
+    private readonly IFusionCache _cacheService;
     private readonly ILogger<ProfileController> _logger;
 
     public ProfileController(
         AppDbContext context,
         AuthService authService,
-        ICacheService cacheService,
+        IFusionCache cacheService,
         ILogger<ProfileController> logger)
     {
         _context = context;
@@ -44,21 +45,22 @@ public class ProfileController : ControllerBase
 
         try
         {
-            var profileDto = await _cacheService.GetOrCreateAsync(cacheKey, async () =>
-            {
-                var profile = await _context.Profiles
-                    .AsNoTracking()
-                    .AsSplitQuery()
-                    .Include(p => p.Contacts)
-                    .Include(p => p.SocialLinks)
-                    .Include(p => p.Projects)
-                    .Include(p => p.WorkExperiences)
-                    .Include(p => p.SchoolExperiences)
-                    .Include(p => p.Gallery)
-                    .FirstOrDefaultAsync(p => p.Username == username);
-
-                return profile == null ? null : DataMapper.ToProfileDto(profile);
-            });
+            var profileDto = await _cacheService.GetOrSetAsync<ProfileDto?>(
+                cacheKey, 
+                async (ctx, token) =>
+                {
+                    var profile = await _context.Profiles
+                        .AsNoTracking()
+                        .AsSplitQuery()
+                        .Include(p => p.Contacts)
+                        .Include(p => p.SocialLinks)
+                        .Include(p => p.Projects)
+                        .Include(p => p.WorkExperiences)
+                        .Include(p => p.SchoolExperiences)
+                        .Include(p => p.Gallery)
+                        .FirstOrDefaultAsync(p => p.Username == username, token); // 传入 token
+                    return profile == null ? null : DataMapper.ToProfileDto(profile);
+                });
 
             if (profileDto == null)
             {

@@ -15,6 +15,8 @@ using System.IO.Compression;
 using OpenBioCardServer.Constants;
 using OpenBioCardServer.Interfaces;
 using OpenBioCardServer.Structs.ENums;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace OpenBioCardServer;
 
@@ -246,21 +248,70 @@ public class Program
     {
         var cacheSettings = builder.Configuration.GetSection(CacheSettings.SectionName).Get<CacheSettings>() ?? new CacheSettings();
 
+        if (!cacheSettings.Enabled)
+        {
+            Console.WriteLine("==> Cache is DISABLED via configuration.");
+            
+            builder.Services.AddFusionCache()
+                .WithDefaultEntryOptions(new FusionCacheEntryOptions
+                {
+                    Duration = TimeSpan.Zero,
+                    IsFailSafeEnabled = false,
+                    FactorySoftTimeout = Timeout.InfiniteTimeSpan,
+                    AllowBackgroundDistributedCacheOperations = false
+                });
+                
+            return;
+        }
+        
         builder.Services.AddMemoryCache(options =>
         {
             options.SizeLimit = cacheSettings.CacheSizeLimit ?? 100;
             options.CompactionPercentage = cacheSettings.CompactionPercentage;
         });
 
-        if (cacheSettings.UseRedis && !string.IsNullOrEmpty(cacheSettings.RedisConnectionString))
+        var fusionBuilder = builder.Services.AddFusionCache()
+            .WithOptions(options =>
+            {
+                options.DistributedCacheCircuitBreakerDuration = TimeSpan.FromSeconds(cacheSettings.DistributedCacheCircuitBreakerDurationSeconds);
+            })
+            .WithDefaultEntryOptions(new FusionCacheEntryOptions
+            {
+                Duration = TimeSpan.FromMinutes(cacheSettings.ExpirationMinutes),
+                
+                FactorySoftTimeout = TimeSpan.FromMilliseconds(cacheSettings.FactorySoftTimeoutMilliseconds),
+                
+                IsFailSafeEnabled = cacheSettings.EnableFailSafe,
+                FailSafeMaxDuration = TimeSpan.FromMinutes(cacheSettings.FailSafeMaxDurationMinutes),
+                FailSafeThrottleDuration = TimeSpan.FromSeconds(30),
+            })
+            .WithSerializer(new FusionCacheSystemTextJsonSerializer());
+        
+        // 根据配置决定是否启用 Redis 和 Backplane
+        if (cacheSettings.Enabled && cacheSettings.UseRedis && !string.IsNullOrEmpty(cacheSettings.RedisConnectionString))
         {
             builder.Services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = cacheSettings.RedisConnectionString;
                 options.InstanceName = cacheSettings.InstanceName;
             });
+            
+            // 将 Redis 注册为 FusionCache 的二级缓存
+            fusionBuilder.WithRegisteredDistributedCache();
+            
+            // 注册 Redis Backplane (用于集群缓存同步)
+            fusionBuilder.WithStackExchangeRedisBackplane(options =>
+            {
+                options.Configuration = cacheSettings.RedisConnectionString;
+            });
+            
+            Console.WriteLine("==> FusionCache configured with Redis L2 & Backplane.");
         }
-        builder.Services.AddSingleton<ICacheService, CacheService>();
+        else
+        {
+            Console.WriteLine("==> FusionCache configured in Memory-Only mode.");
+        }
+        // builder.Services.AddSingleton<ICacheService, CacheService>();
     }
 
     private static void ConfigureCompressionService(WebApplicationBuilder builder)

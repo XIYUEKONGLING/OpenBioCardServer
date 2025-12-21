@@ -10,6 +10,7 @@ using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Services;
 using OpenBioCardServer.Utilities.Mappers;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace OpenBioCardServer.Controllers.Classic;
 
@@ -19,7 +20,7 @@ public class ClassicSettingsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ClassicAuthService _authService;
-    private readonly ICacheService _cacheService;
+    private readonly IFusionCache _cache;
     private readonly ILogger<ClassicSettingsController> _logger;
     
     // 缓存 Key 常量
@@ -28,12 +29,12 @@ public class ClassicSettingsController : ControllerBase
     public ClassicSettingsController(
         AppDbContext context,
         ClassicAuthService authService,
-        ICacheService cacheService,
+        IFusionCache cache,
         ILogger<ClassicSettingsController> logger)
     {
         _context = context;
         _authService = authService;
-        _cacheService = cacheService;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -46,17 +47,19 @@ public class ClassicSettingsController : ControllerBase
     {
         try
         {
-            var response = await _cacheService.GetOrCreateAsync(PublicSettingsCacheKey, async () =>
-            {
-                var settings = await _context.SystemSettings.FindAsync(1);
-                return new ClassicSystemSettingsResponse
+            var response = await _cache.GetOrSetAsync<ClassicSystemSettingsResponse>(
+                PublicSettingsCacheKey, 
+                async (ctx, token) =>
                 {
-                    Title = settings?.Title ?? "OpenBioCard",
-                    Logo = settings?.LogoType.HasValue == true
-                        ? ClassicMapper.AssetToString(settings.LogoType.Value, settings.LogoText, settings.LogoData)
-                        : string.Empty
-                };
-            });
+                    var settings = await _context.SystemSettings.FindAsync(new object[] { 1 }, token);
+                    return new ClassicSystemSettingsResponse
+                    {
+                        Title = settings?.Title ?? "OpenBioCard",
+                        Logo = settings?.LogoType.HasValue == true
+                            ? ClassicMapper.AssetToString(settings.LogoType.Value, settings.LogoText, settings.LogoData)
+                            : string.Empty
+                    };
+                });
             
             return Ok(response);
         }
@@ -178,7 +181,7 @@ public class ClassicSettingsController : ControllerBase
             await _context.SaveChangesAsync();
 
             // 更新成功后清除公共设置的缓存以确保前端获取到最新数据
-            await _cacheService.RemoveAsync(PublicSettingsCacheKey);
+            await _cache.RemoveAsync(PublicSettingsCacheKey);
 
             _logger.LogInformation("Admin {Username} updated system settings", request.Username);
 
