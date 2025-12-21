@@ -101,6 +101,8 @@ public class Program
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi();
+        
+        builder.Services.AddHealthChecks();
 
         // App Services
         builder.Services.AddScoped<ClassicAuthService>();
@@ -445,6 +447,9 @@ public class Program
         app.UseRateLimiter();
         app.UseCors("AllowFrontend");
         app.UseAuthorization();
+        
+        app.MapHealthChecks("/health");
+
         app.MapControllers();
     }
 }
