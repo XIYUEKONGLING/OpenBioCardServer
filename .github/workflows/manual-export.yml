@@ -1,0 +1,57 @@
+name: Manual Build and Export
+
+on:
+  # Trigger manually
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version Tag (e.g., dev-v2025.12.21.a)'
+        required: true
+        type: string
+
+env:
+  IMAGE_NAME: openbiocard-server
+  DOCKERFILE_PATH: ./Dockerfile
+
+jobs:
+  build-and-export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Release Branch
+        uses: actions/checkout@v4
+        with:
+          ref: release
+
+      - name: Build Docker Image
+        run: |
+          echo "Building image with tag: ${{ inputs.version }}"
+          # Build the image locally
+          docker build -f ${{ env.DOCKERFILE_PATH }} -t ${{ env.IMAGE_NAME }}:${{ inputs.version }} .
+
+      - name: Save Image to File
+        run: |
+          # Define filenames
+          TAR_NAME="${{ env.IMAGE_NAME }}-${{ inputs.version }}.tar"
+          
+          echo "Saving image to $TAR_NAME..."
+          # Export the image to a tarball
+          docker save ${{ env.IMAGE_NAME }}:${{ inputs.version }} -o $TAR_NAME
+          
+          # Optional: Compress with gzip to save space
+          echo "Compressing..."
+          gzip $TAR_NAME
+          
+          echo "FILE_PATH=$TAR_NAME.gz" >> $GITHUB_ENV
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # Name of the artifact in GitHub UI
+          name: docker-image-${{ inputs.version }}
+          # The file to upload
+          path: ${{ env.FILE_PATH }}
+          # Retention period (days)
+          retention-days: 3
