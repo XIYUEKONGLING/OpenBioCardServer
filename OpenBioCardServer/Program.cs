@@ -107,6 +107,8 @@ public class Program
         // App Services
         builder.Services.AddScoped<ClassicAuthService>();
         builder.Services.AddScoped<AuthService>();
+        builder.Services.AddScoped<ClassicProfileService>();
+        
         builder.Services.AddHostedService<TokenCleanupService>();
     }
 
