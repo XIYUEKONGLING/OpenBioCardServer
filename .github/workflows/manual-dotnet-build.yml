@@ -57,7 +57,6 @@ jobs:
           
           matrix_json = json.dumps({"include": include_list})
           
-          # 4. 输出到 GitHub Output
           print(f"Generated Matrix: {matrix_json}")
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f"matrix={matrix_json}")
@@ -85,7 +84,7 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      - name: Publish
+      - name: Publish & Zip
         run: |
           SELF_CONTAINED=""
           if [ "${{ inputs.is_self_contained }}" == "true" ]; then
@@ -98,25 +97,34 @@ jobs:
           if [ "${{ inputs.is_single_file }}" == "true" ]; then
             SINGLE_FILE="-p:PublishSingleFile=true"
           fi
-
+          
           OUT_NAME="OpenBioCardServer-${{ matrix.rid }}-${{ matrix.config }}"
-          OUT_DIR="./publish_output"
+          PUBLISH_DIR="./publish_temp"
+          ARTIFACTS_DIR="./artifacts_output"
+          
+          mkdir -p $ARTIFACTS_DIR
 
           echo "🚀 Building: ${{ matrix.rid }} - ${{ matrix.config }}"
-          
+
           dotnet publish ${{ env.PROJECT_PATH }} \
             -c ${{ matrix.config }} \
             -r ${{ matrix.rid }} \
             $SELF_CONTAINED \
             $SINGLE_FILE \
-            -o $OUT_DIR
+            -o $PUBLISH_DIR
 
-          cd $OUT_DIR
-          zip -r "../../${OUT_NAME}.zip" .
+          echo "📦 Zipping to $ARTIFACTS_DIR/${OUT_NAME}.zip ..."
           
+          cd $PUBLISH_DIR
+          zip -r "../$ARTIFACTS_DIR/${OUT_NAME}.zip" .
+
+          echo "📂 Listing artifacts dir:"
+          ls -l "../$ARTIFACTS_DIR"
+
       - name: Upload Artifact (Independent)
         uses: actions/upload-artifact@v4
         with:
           name: OpenBioCardServer-${{ matrix.rid }}-${{ matrix.config }}
-          path: ./*.zip
+          path: ./artifacts_output/*.zip
           retention-days: 5
+
