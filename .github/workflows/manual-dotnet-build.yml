@@ -1,10 +1,10 @@
-name: Manual .NET Build (Artifacts)
+name: Manual .NET Build
 
 on:
   workflow_dispatch:
     inputs:
       target_rids:
-        description: 'Target RIDs (comma separated). E.g: linux-x64, win-x64, osx-arm64'
+        description: 'Target RIDs (comma separated). E.g: linux-x64, win-x64'
         required: true
         default: 'linux-x64, win-x64'
         type: string
@@ -16,13 +16,13 @@ on:
         type: string
 
       is_self_contained:
-        description: 'Self Contained? (Includes .NET Runtime, larger size but no install required)'
+        description: 'Self Contained?'
         required: true
         type: boolean
         default: true
 
       is_single_file:
-        description: 'Publish as Single File? (Cleaner output)'
+        description: 'Publish as Single File?'
         required: true
         type: boolean
         default: false
@@ -32,11 +32,45 @@ env:
   DOTNET_VERSION: '10.0.x'
 
 jobs:
-  build-matrix:
+  prepare-matrix:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        name: Generate Build Matrix
+        shell: python
+        run: |
+          import json
+          import os
+          
+          rids_input = "${{ inputs.target_rids }}"
+          configs_input = "${{ inputs.build_configs }}"
+          
+          rids = [x.strip() for x in rids_input.split(',') if x.strip()]
+          configs = [x.strip() for x in configs_input.split(',') if x.strip()]
+          
+          include_list = []
+          for r in rids:
+              for c in configs:
+                  include_list.append({"rid": r, "config": c})
+          
+          matrix_json = json.dumps({"include": include_list})
+          
+          # 4. 输出到 GitHub Output
+          print(f"Generated Matrix: {matrix_json}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"matrix={matrix_json}")
 
+  build:
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+    
+    name: Build ${{ matrix.rid }} (${{ matrix.config }})
+    
     steps:
       - name: Checkout Release Branch
         uses: actions/checkout@v4
@@ -51,14 +85,8 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      # 核心逻辑：解析逗号分隔的输入，循环构建
-      - name: Build and Publish Loop
-        id: build_step
-        shell: bash
+      - name: Publish
         run: |
-          IFS=',' read -ra RIDS <<< "${{ inputs.target_rids }}"
-          IFS=',' read -ra CONFIGS <<< "${{ inputs.build_configs }}"
-          
           SELF_CONTAINED=""
           if [ "${{ inputs.is_self_contained }}" == "true" ]; then
             SELF_CONTAINED="--self-contained true"
@@ -71,39 +99,24 @@ jobs:
             SINGLE_FILE="-p:PublishSingleFile=true"
           fi
 
-          mkdir -p ./artifacts
+          OUT_NAME="OpenBioCardServer-${{ matrix.rid }}-${{ matrix.config }}"
+          OUT_DIR="./publish_output"
 
-          for rid in "${RIDS[@]}"; do
-            rid=$(echo $rid | xargs)
-            
-            for config in "${CONFIGS[@]}"; do
-              config=$(echo $config | xargs)
-              
-              echo "---------------------------------------------------"
-              echo "🚀 Building for: RID=[$rid] | Config=[$config]"
-              echo "---------------------------------------------------"
-              
-              OUT_NAME="OpenBioCardServer-${rid}-${config}"
-              OUT_DIR="./build_temp/${OUT_NAME}"
-              
-              dotnet publish ${{ env.PROJECT_PATH }} \
-                -c $config \
-                -r $rid \
-                $SELF_CONTAINED \
-                $SINGLE_FILE \
-                -o $OUT_DIR
-              
-              cd ./build_temp
-              zip -r "../artifacts/${OUT_NAME}.zip" "${OUT_NAME}"
-              cd ..
-              
-              echo "✅ Created: ./artifacts/${OUT_NAME}.zip"
-            done
-          done
+          echo "🚀 Building: ${{ matrix.rid }} - ${{ matrix.config }}"
+          
+          dotnet publish ${{ env.PROJECT_PATH }} \
+            -c ${{ matrix.config }} \
+            -r ${{ matrix.rid }} \
+            $SELF_CONTAINED \
+            $SINGLE_FILE \
+            -o $OUT_DIR
 
-      - name: Upload Artifacts
+          cd $OUT_DIR
+          zip -r "../../${OUT_NAME}.zip" .
+          
+      - name: Upload Artifact (Independent)
         uses: actions/upload-artifact@v4
         with:
-          name: OpenBioCard-Builds
-          path: ./artifacts/*.zip
+          name: OpenBioCardServer-${{ matrix.rid }}-${{ matrix.config }}
+          path: ./*.zip
           retention-days: 5
