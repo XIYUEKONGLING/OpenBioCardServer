@@ -129,7 +129,7 @@ public class AdminController : ControllerBase
     /// <summary>
     /// 删除用户
     /// </summary>
-    [HttpDelete("users/{username}")]
+    [HttpDelete("users/@{username}")]
     public async Task<IActionResult> DeleteUser(string username)
     {
         var token = GetTokenFromHeader();
