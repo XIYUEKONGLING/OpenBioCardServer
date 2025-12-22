@@ -60,6 +60,12 @@
 
 2. **检查配置**
    项目默认使用 `appsettings.Development.json`。
+
+   ```bash
+   $ cd OpenBioCardServer
+   $ vim appsettings.Development.json
+   ```
+
    ```json
    // appsettings.Development.json
    "DatabaseSettings": {
@@ -83,7 +89,7 @@
 
 1. **克隆仓库** `https://github.com/OpenBioCard/OpenBioCard.git`
 
-2. **安装依赖** 
+2. **安装依赖**
 
    ```bash
    $ pnpm install
@@ -98,7 +104,7 @@
    ```env
    VITE_API_BASE_URL=http://localhost:5046/classic
    ```
-   
+
 4. 启动应用
 
    ```bash
@@ -125,6 +131,11 @@
 | | `ExpirationMinutes` | `CacheSettings__ExpirationMinutes` | 绝对过期时间（分钟）。 | `30` |
 | | `SlidingExpirationMinutes` | `CacheSettings__SlidingExpirationMinutes` | 滑动过期时间（分钟），访问时自动续期。 | `5` |
 | | `CompactionPercentage` | `CacheSettings__CompactionPercentage` | 内存缓存满时清理的比例 (0.0 - 1.0)。 | `0.2` |
+| | `FactorySoftTimeoutMilliseconds` | `CacheSettings__FactorySoftTimeoutMilliseconds` | 缓存工厂软超时时间（毫秒）。 | `500` |
+| | `EnableFailSafe` | `CacheSettings__EnableFailSafe` | 是否启用故障兜底 (Fail-Safe) 机制。 | `true` |
+| | `FailSafeMaxDurationMinutes` | `CacheSettings__FailSafeMaxDurationMinutes` | 故障兜底时陈旧数据的最大保留时间（分钟）。 | `120` |
+| | `FailSafeThrottleDurationSeconds` | `CacheSettings__FailSafeThrottleDurationSeconds` | 瞬时故障的节流时间（秒）。 | `30` |
+| | `DistributedCacheCircuitBreakerDurationSeconds` | `CacheSettings__DistributedCacheCircuitBreakerDurationSeconds` | 分布式缓存熔断时间（秒）。 | `2` |
 | **压缩** | `Enabled` | `CompressionSettings__Enabled` | 是否启用 Gzip/Brotli 响应压缩。 | `true` |
 | | `EnableForHttps` | `CompressionSettings__EnableForHttps` | 是否在 HTTPS 请求中启用压缩。 | `true` |
 | | `Level` | `CompressionSettings__Level` | 压缩级别：`Fastest` (最快), `Optimal` (最佳), `SmallestSize` (最小体积)。 | `Fastest` |

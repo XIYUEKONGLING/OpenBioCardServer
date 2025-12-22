@@ -60,6 +60,12 @@ It provides RESTful APIs compatible with the OpenBioCard frontend, allowing you 
 
 2. **Check configuration**
    The project uses `appsettings.Development.json` by default.
+
+   ```bash
+   $ cd OpenBioCardServer
+   $ vim appsettings.Development.json
+   ```
+
    ```json
    // appsettings.Development.json
    "DatabaseSettings": {
@@ -125,6 +131,11 @@ For environment variables, use double underscores `__` to separate sections (e.g
 | | `ExpirationMinutes` | `CacheSettings__ExpirationMinutes` | Absolute expiration time in minutes. | `30` |
 | | `SlidingExpirationMinutes` | `CacheSettings__SlidingExpirationMinutes` | Reset expiration if accessed within this time. | `5` |
 | | `CompactionPercentage` | `CacheSettings__CompactionPercentage` | Percentage (0.0-1.0) of cache to compact when full. | `0.2` |
+| | `FactorySoftTimeoutMilliseconds` | `CacheSettings__FactorySoftTimeoutMilliseconds` | Soft timeout for factory execution (ms). | `500` |
+| | `EnableFailSafe` | `CacheSettings__EnableFailSafe` | Enable Fail-Safe mechanism. | `true` |
+| | `FailSafeMaxDurationMinutes` | `CacheSettings__FailSafeMaxDurationMinutes` | Max duration for stale data (minutes). | `120` |
+| | `FailSafeThrottleDurationSeconds` | `CacheSettings__FailSafeThrottleDurationSeconds` | Throttle duration for transient errors (seconds). | `30` |
+| | `DistributedCacheCircuitBreakerDurationSeconds` | `CacheSettings__DistributedCacheCircuitBreakerDurationSeconds` | Circuit breaker duration for distributed cache (seconds). | `2` |
 | **Compression**| `Enabled` | `CompressionSettings__Enabled` | Enable Gzip/Brotli response compression. | `true` |
 | | `EnableForHttps` | `CompressionSettings__EnableForHttps` | Secure CRIME/BREACH protection flag. | `true` |
 | | `Level` | `CompressionSettings__Level` | Level: `Fastest`, `Optimal`, `NoCompression`, `SmallestSize`. | `Fastest` |
