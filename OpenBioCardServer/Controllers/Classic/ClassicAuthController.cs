@@ -113,11 +113,25 @@ public class ClassicAuthController : ControllerBase
     }
 
     /// <summary>
-    /// User login
+    /// User login (POST - JSON Body)
     /// </summary>
     [HttpPost("signin")]
     [EnableRateLimiting(RateLimitPolicies.Login)]
-    public async Task<IActionResult> SignIn([FromBody] ClassicSignInRequest request)
+    public async Task<IActionResult> SignIn([FromBody] ClassicSignInRequest request) => 
+        await HandleSignInAsync(request);
+
+    /// <summary>
+    /// User login (GET - Query Parameters)
+    /// </summary>
+    [HttpGet("signin")]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
+    public async Task<IActionResult> SignInGet([FromQuery] ClassicSignInRequest request) => 
+        await HandleSignInAsync(request);
+
+    /// <summary>
+    /// Shared login logic for both POST and GET
+    /// </summary>
+    private async Task<IActionResult> HandleSignInAsync(ClassicSignInRequest request)
     {
         try
         {
