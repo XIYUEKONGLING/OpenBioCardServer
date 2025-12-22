@@ -46,25 +46,25 @@ public class ClassicAuthController : ControllerBase
                 string.IsNullOrWhiteSpace(request.Password) ||
                 string.IsNullOrWhiteSpace(request.Type))
             {
-                return BadRequest(new { error = "Missing required fields" });
+                return BadRequest(new ClassicErrorResponse("Missing required fields"));
             }
 
             // Check if username already exists
             if (await _context.Accounts.AnyAsync(a => a.UserName == request.Username))
             {
-                return Conflict(new { error = "Username already exists" });
+                return Conflict(new ClassicErrorResponse("Username already exists"));
             }
 
             // Validate and parse user type
             if (!Enum.TryParse<UserType>(request.Type, true, out var userType))
             {
-                return BadRequest(new { error = "Invalid user type" });
+                return BadRequest(new ClassicErrorResponse("Invalid user type"));
             }
 
             // Cannot create root users via signup
             if (userType == UserType.Root)
             {
-                return StatusCode(403, new { error = "Cannot create root users" });
+                return StatusCode(403, new ClassicErrorResponse("Cannot create root users"));
             }
 
             // Create new account with hashed password
@@ -106,7 +106,7 @@ public class ClassicAuthController : ControllerBase
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Error during user registration");
-            return StatusCode(500, new { error = "Account creation failed" });
+            return StatusCode(500, new ClassicErrorResponse("Account creation failed"));
         }
     }
 
@@ -137,7 +137,7 @@ public class ClassicAuthController : ControllerBase
             if (string.IsNullOrWhiteSpace(request.Username) || 
                 string.IsNullOrWhiteSpace(request.Password))
             {
-                return BadRequest(new { error = "Username and password are required" });
+                return BadRequest(new ClassicErrorResponse("Username and password are required"));
             }
 
             // 查询账户
@@ -148,13 +148,13 @@ public class ClassicAuthController : ControllerBase
             if (account == null)
             {
                 // 使用通用错误消息，防止用户名枚举攻击
-                return Unauthorized(new { error = "Invalid username or password" });
+                return Unauthorized(new ClassicErrorResponse("Invalid username or password"));
             }
 
             // 验证密码（所有用户统一使用哈希验证）
             if (!PasswordHasher.VerifyPassword(request.Password, account.PasswordHash, account.PasswordSalt))
             {
-                return Unauthorized(new { error = "Invalid username or password" });
+                return Unauthorized(new ClassicErrorResponse("Invalid username or password"));
             }
 
             // 生成 Token
@@ -180,7 +180,7 @@ public class ClassicAuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during sign in for user: {Username}", request.Username);
-            return StatusCode(503, new { error = "Service temporarily unavailable" });
+            return StatusCode(503, new ClassicErrorResponse("Service temporarily unavailable"));
         }
     }
 
@@ -196,18 +196,18 @@ public class ClassicAuthController : ControllerBase
 
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token" });
+                return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             if (account.UserName != request.Username)
             {
-                return Unauthorized(new { error = "Token does not match username" });
+                return Unauthorized(new ClassicErrorResponse("Token does not match username"));
             }
 
             // Root account cannot be deleted
             if (account.Type == UserType.Root)
             {
-                return StatusCode(403, new { error = "Cannot delete root account" });
+                return StatusCode(403, new ClassicErrorResponse("Cannot delete root account"));
             }
 
             // Delete account (cascade deletes will handle profile and tokens)
@@ -216,12 +216,12 @@ public class ClassicAuthController : ControllerBase
 
             _logger.LogInformation("User deleted their account: {Username}", request.Username);
 
-            return Ok(new { message = "Account deleted successfully" });
+            return Ok(new ClassicErrorResponse("Account deleted successfully"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during account deletion");
-            return StatusCode(500, new { error = "Account deletion failed" });
+            return StatusCode(500, new ClassicErrorResponse("Account deletion failed"));
         }
     }
 }

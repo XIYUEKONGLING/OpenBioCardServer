@@ -66,7 +66,7 @@ public class ClassicSettingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving public settings");
-            return StatusCode(500, new { error = "Failed to get settings" });
+            return StatusCode(500, new ClassicErrorResponse("Failed to get settings"));
         }
     }
 
@@ -84,17 +84,17 @@ public class ClassicSettingsController : ControllerBase
 
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token" });
+                return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             if (account.UserName != request.Username)
             {
-                return Unauthorized(new { error = "Token does not match username" });
+                return Unauthorized(new ClassicErrorResponse("Token does not match username"));
             }
 
             if (!await _authService.HasAdminPermissionAsync(account))
             {
-                return StatusCode(403, new { error = "Insufficient permissions" });
+                return StatusCode(403, new ClassicErrorResponse("Insufficient permissions"));
             }
 
             var settings = await _context.SystemSettings.FindAsync(1);
@@ -112,7 +112,7 @@ public class ClassicSettingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving admin settings");
-            return StatusCode(500, new { error = "Failed to get settings" });
+            return StatusCode(500, new ClassicErrorResponse("Failed to get settings"));
         }
     }
 
@@ -129,22 +129,22 @@ public class ClassicSettingsController : ControllerBase
 
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token" });
+                return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             if (account.UserName != request.Username)
             {
-                return Unauthorized(new { error = "Token does not match username" });
+                return Unauthorized(new ClassicErrorResponse("Token does not match username"));
             }
 
             if (!await _authService.HasAdminPermissionAsync(account))
             {
-                return StatusCode(403, new { error = "Insufficient permissions" });
+                return StatusCode(403, new ClassicErrorResponse("Insufficient permissions"));
             }
 
             if (string.IsNullOrWhiteSpace(request.Title))
             {
-                return BadRequest(new { error = "Title is required" });
+                return BadRequest(new ClassicErrorResponse("Title is required"));
             }
 
             var settings = await _context.SystemSettings.FindAsync(1);
@@ -190,7 +190,7 @@ public class ClassicSettingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating settings");
-            return StatusCode(500, new { error = "Failed to update settings" });
+            return StatusCode(500, new ClassicErrorResponse("Failed to update settings"));
         }
     }
 }

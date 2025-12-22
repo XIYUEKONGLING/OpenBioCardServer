@@ -34,7 +34,7 @@ public class ClassicUserController : ControllerBase
             
             if (profileDto == null)
             {
-                return NotFound(new { error = "User not found" });
+                return NotFound(new ClassicErrorResponse("User not found"));
             }
             
             return Ok(profileDto);
@@ -42,7 +42,7 @@ public class ClassicUserController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving profile for user: {Username}", username);
-            return StatusCode(500, new { error = "Internal server error" });
+            return StatusCode(500, new ClassicErrorResponse("Internal server error"));
         }
     }
 
@@ -56,19 +56,19 @@ public class ClassicUserController : ControllerBase
         
         if (string.IsNullOrEmpty(token))
         {
-            return Unauthorized(new { error = "Missing authentication token" });
+            return Unauthorized(new ClassicErrorResponse("Missing authentication token"));
         }
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
 
         if (!isValid || account == null)
         {
-            return Unauthorized(new { error = "Invalid token" });
+            return Unauthorized(new ClassicErrorResponse("Invalid token"));
         }
 
         if (account.UserName != username)
         {
-            return Unauthorized(new { error = "Token does not match username" });
+            return Unauthorized(new ClassicErrorResponse("Token does not match username"));
         }
 
         try
@@ -77,14 +77,14 @@ public class ClassicUserController : ControllerBase
             
             if (!success)
             {
-                return NotFound(new { error = "Profile not found" });
+                return NotFound(new ClassicErrorResponse("Profile not found"));
             }
 
             return Ok(new { success = true });
         }
         catch (Exception)
         {
-            return StatusCode(500, new { error = "Profile update failed" });
+            return StatusCode(500, new ClassicErrorResponse("Profile update failed"));
         }
     }
 
@@ -98,19 +98,19 @@ public class ClassicUserController : ControllerBase
         
         if (string.IsNullOrEmpty(token))
         {
-            return Unauthorized(new { error = "Missing authentication token" });
+            return Unauthorized(new ClassicErrorResponse("Missing authentication token"));
         }
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
 
         if (!isValid || account == null)
         {
-            return Unauthorized(new { error = "Invalid token" });
+            return Unauthorized(new ClassicErrorResponse("Invalid token"));
         }
 
         if (account.UserName != username)
         {
-            return Unauthorized(new { error = "Token does not match username" });
+            return Unauthorized(new ClassicErrorResponse("Token does not match username"));
         }
 
         try
@@ -119,7 +119,7 @@ public class ClassicUserController : ControllerBase
             
             if (exportData == null)
             {
-                return NotFound(new { error = "User data not found" });
+                return NotFound(new ClassicErrorResponse("User data not found"));
             }
 
             return Ok(exportData);
@@ -127,7 +127,7 @@ public class ClassicUserController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting data for user: {Username}", username);
-            return StatusCode(500, new { error = "Export failed" });
+            return StatusCode(500, new ClassicErrorResponse("Export failed"));
         }
     }
 
@@ -141,19 +141,19 @@ public class ClassicUserController : ControllerBase
         
         if (string.IsNullOrEmpty(token))
         {
-            return Unauthorized(new { error = "Missing authentication token" });
+            return Unauthorized(new ClassicErrorResponse("Missing authentication token"));
         }
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
 
         if (!isValid || account == null)
         {
-            return Unauthorized(new { error = "Invalid token" });
+            return Unauthorized(new ClassicErrorResponse("Invalid token"));
         }
 
         if (account.UserName != username)
         {
-            return Unauthorized(new { error = "Token does not match username" });
+            return Unauthorized(new ClassicErrorResponse("Token does not match username"));
         }
 
         try
@@ -162,7 +162,7 @@ public class ClassicUserController : ControllerBase
             
             if (!success)
             {
-                return BadRequest(new { error = "Import failed or username mismatch" });
+                return BadRequest(new ClassicErrorResponse("Import failed or username mismatch"));
             }
 
             return Ok(new { success = true });
@@ -170,7 +170,7 @@ public class ClassicUserController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error importing data for user: {Username}", username);
-            return StatusCode(500, new { error = "Import failed" });
+            return StatusCode(500, new ClassicErrorResponse("Import failed"));
         }
     }
 

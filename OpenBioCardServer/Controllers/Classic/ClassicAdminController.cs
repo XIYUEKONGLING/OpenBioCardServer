@@ -39,17 +39,17 @@ public class ClassicAdminController : ControllerBase
 
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token" });
+                return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             if (account.UserName != request.Username)
             {
-                return Unauthorized(new { error = "Token does not match username" });
+                return Unauthorized(new ClassicErrorResponse("Token does not match username"));
             }
 
             if (!await _authService.HasAdminPermissionAsync(account))
             {
-                return StatusCode(403, new { error = "Insufficient permissions" });
+                return StatusCode(403, new ClassicErrorResponse("Insufficient permissions"));
             }
 
             return Ok(new 
@@ -61,7 +61,7 @@ public class ClassicAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking admin permission");
-            return StatusCode(500, new { error = "Permission check failed" });
+            return StatusCode(500, new ClassicErrorResponse("Permission check failed"));
         }
     }
 
@@ -96,17 +96,17 @@ public class ClassicAdminController : ControllerBase
 
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token" });
+                return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             if (account.UserName != username)
             {
-                return Unauthorized(new { error = "Token does not match username" });
+                return Unauthorized(new ClassicErrorResponse("Token does not match username"));
             }
 
             if (!await _authService.HasAdminPermissionAsync(account))
             {
-                return StatusCode(403, new { error = "Insufficient permissions" });
+                return StatusCode(403, new ClassicErrorResponse("Insufficient permissions"));
             }
 
             // Get all non-root users
@@ -124,7 +124,7 @@ public class ClassicAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving user list");
-            return StatusCode(500, new { error = "Failed to get user list" });
+            return StatusCode(500, new ClassicErrorResponse("Failed to get user list"));
         }
     }
 
@@ -142,35 +142,35 @@ public class ClassicAdminController : ControllerBase
 
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token" });
+                return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             if (account.UserName != request.Username)
             {
-                return Unauthorized(new { error = "Token does not match username" });
+                return Unauthorized(new ClassicErrorResponse("Token does not match username"));
             }
 
             if (!await _authService.HasAdminPermissionAsync(account))
             {
-                return StatusCode(403, new { error = "Insufficient permissions" });
+                return StatusCode(403, new ClassicErrorResponse("Insufficient permissions"));
             }
 
             // Validate new user type
             if (!Enum.TryParse<UserType>(request.Type, true, out var userType))
             {
-                return BadRequest(new { error = "Invalid user type" });
+                return BadRequest(new ClassicErrorResponse("Invalid user type"));
             }
 
             // Cannot create root users
             if (userType == UserType.Root)
             {
-                return StatusCode(403, new { error = "Cannot create root users" });
+                return StatusCode(403, new ClassicErrorResponse("Cannot create root users"));
             }
 
             // Check if username already exists
             if (await _context.Accounts.AnyAsync(a => a.UserName == request.NewUsername))
             {
-                return Conflict(new { error = "Username already exists" });
+                return Conflict(new ClassicErrorResponse("Username already exists"));
             }
 
             // Create new account
@@ -216,7 +216,7 @@ public class ClassicAdminController : ControllerBase
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Error creating new user");
-            return StatusCode(500, new { error = "User creation failed" });
+            return StatusCode(500, new ClassicErrorResponse("User creation failed"));
         }
     }
 
@@ -232,23 +232,23 @@ public class ClassicAdminController : ControllerBase
 
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token" });
+                return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             if (account.UserName != request.Username)
             {
-                return Unauthorized(new { error = "Token does not match username" });
+                return Unauthorized(new ClassicErrorResponse("Token does not match username"));
             }
 
             if (!await _authService.HasAdminPermissionAsync(account))
             {
-                return StatusCode(403, new { error = "Insufficient permissions" });
+                return StatusCode(403, new ClassicErrorResponse("Insufficient permissions"));
             }
 
             // Cannot delete self
             if (account.UserName == targetUsername)
             {
-                return StatusCode(403, new { error = "Cannot delete your own account" });
+                return StatusCode(403, new ClassicErrorResponse("Cannot delete your own account"));
             }
 
             var targetAccount = await _context.Accounts
@@ -256,13 +256,13 @@ public class ClassicAdminController : ControllerBase
 
             if (targetAccount == null)
             {
-                return NotFound(new { error = "User not found" });
+                return NotFound(new ClassicErrorResponse("User not found"));
             }
 
             // Cannot delete root account
             if (targetAccount.Type == UserType.Root)
             {
-                return StatusCode(403, new { error = "Cannot delete root account" });
+                return StatusCode(403, new ClassicErrorResponse("Cannot delete root account"));
             }
 
             // Delete account (cascade deletes will handle profile and tokens)
@@ -277,7 +277,7 @@ public class ClassicAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting user");
-            return StatusCode(500, new { error = "User deletion failed" });
+            return StatusCode(500, new ClassicErrorResponse("User deletion failed"));
         }
     }
 }
