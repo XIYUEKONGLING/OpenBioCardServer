@@ -50,7 +50,7 @@ public class TokenCleanupService : BackgroundService
             context.Tokens.RemoveRange(expiredTokens);
             await context.SaveChangesAsync();
             
-            _logger.LogInformation("Cleared {{Count}} expired tokens", expiredTokens.Count);
+            _logger.LogInformation($"Cleared {expiredTokens.Count} expired tokens");
         }
     }
 }
