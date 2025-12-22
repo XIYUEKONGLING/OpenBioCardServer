@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OpenBioCardServer.Constants;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Models.DTOs.Classic;
 using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Services;
 using OpenBioCardServer.Utilities;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace OpenBioCardServer.Controllers.Classic;
 
@@ -15,11 +17,13 @@ public class ClassicAdminController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ClassicAuthService _authService;
+    private readonly IFusionCache _cache;
     private readonly ILogger<ClassicAdminController> _logger;
 
     public ClassicAdminController(
         AppDbContext context,
         ClassicAuthService authService,
+        IFusionCache cache,
         ILogger<ClassicAdminController> logger)
     {
         _context = context;
@@ -268,6 +272,8 @@ public class ClassicAdminController : ControllerBase
             // Delete account (cascade deletes will handle profile and tokens)
             _context.Accounts.Remove(targetAccount);
             await _context.SaveChangesAsync();
+            
+            await _cache.RemoveAsync(CacheKeys.GetClassicProfileCacheKey(targetUsername));
 
             _logger.LogInformation("Admin {AdminUser} deleted user: {TargetUser}", 
                 request.Username, targetUsername);
