@@ -12,6 +12,7 @@ using OpenBioCardServer.Services;
 using OpenBioCardServer.Utilities;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
+using Newtonsoft.Json.Serialization;
 using OpenBioCardServer.Constants;
 using OpenBioCardServer.Interfaces;
 using OpenBioCardServer.Structs.ENums;
@@ -99,6 +100,7 @@ public class Program
             .AddNewtonsoftJson(options =>
             {
                 options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+                options.SerializerSettings.ContractResolver = new DefaultContractResolver();
             });
 
         builder.Services.AddEndpointsApiExplorer();

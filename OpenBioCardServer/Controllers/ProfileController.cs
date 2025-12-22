@@ -64,7 +64,7 @@ public class ProfileController : ControllerBase
 
             if (profileDto == null)
             {
-                return NotFound(new { error = "User not found" });
+                return NotFound(new { Error = "User not found" });
             }
 
             return profileDto;
@@ -72,7 +72,7 @@ public class ProfileController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving profile for user: {Username}", username);
-            return StatusCode(500, new { error = "Internal server error" });
+            return StatusCode(500, new { Error = "Internal server error" });
         }
     }
 
@@ -91,7 +91,7 @@ public class ProfileController : ControllerBase
         
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token or token does not match username" });
+                return Unauthorized(new { Error = "Invalid token or token does not match username" });
             }
 
             var profile = await _context.Profiles
@@ -99,7 +99,7 @@ public class ProfileController : ControllerBase
 
             if (profile == null)
             {
-                return NotFound(new { error = "Profile not found" });
+                return NotFound(new { Error = "Profile not found" });
             }
 
             DataMapper.UpdateProfileEntity(profile, request);
@@ -115,13 +115,13 @@ public class ProfileController : ControllerBase
             await _cacheService.RemoveAsync(GetProfileCacheKey(username));
 
             _logger.LogInformation("Profile updated for user: {Username}", username);
-            return Ok(new { success = true });
+            return Ok(new { Success = true });
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Error updating profile for user: {Username}", username);
-            return StatusCode(500, new { error = "Profile update failed" });
+            return StatusCode(500, new { Error = "Profile update failed" });
         }
     }
 
@@ -134,13 +134,13 @@ public class ProfileController : ControllerBase
         var token = GetTokenFromHeader();
         if (string.IsNullOrEmpty(token))
         {
-            return Unauthorized(new { error = "Missing authentication token" });
+            return Unauthorized(new { Error = "Missing authentication token" });
         }
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
         if (!isValid || account == null)
         {
-            return Unauthorized(new { error = "Invalid token" });
+            return Unauthorized(new { Error = "Invalid token" });
         }
 
         var profile = await _context.Profiles
@@ -156,7 +156,7 @@ public class ProfileController : ControllerBase
 
         if (profile == null)
         {
-            return NotFound(new { error = "Profile not found" });
+            return NotFound(new { Error = "Profile not found" });
         }
 
         return DataMapper.ToProfileDto(profile);

@@ -44,12 +44,12 @@ public class AuthController : ControllerBase
                 string.IsNullOrWhiteSpace(request.Password) ||
                 string.IsNullOrWhiteSpace(request.UserType))
             {
-                return BadRequest(new { error = "Missing required fields" });
+                return BadRequest(new { Error = "Missing required fields" });
             }
 
             if (!Enum.TryParse<UserType>(request.UserType, true, out var userType))
             {
-                return BadRequest(new { error = "Invalid user type" });
+                return BadRequest(new { Error = "Invalid user type" });
             }
 
             if (userType == UserType.Root)
@@ -59,7 +59,7 @@ public class AuthController : ControllerBase
 
             if (await _authService.UsernameExistsAsync(request.Username))
             {
-                return Conflict(new { error = "Username already exists" });
+                return Conflict(new { Error = "Username already exists" });
             }
 
             var account = await _authService.CreateAccountAsync(request.Username, request.Password, userType);
@@ -78,7 +78,7 @@ public class AuthController : ControllerBase
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Error during user registration");
-            return StatusCode(500, new { error = "Account creation failed" });
+            return StatusCode(500, new { Error = "Account creation failed" });
         }
     }
 
@@ -93,7 +93,7 @@ public class AuthController : ControllerBase
         var account = await _authService.FindAccountByUsernameAsync(request.Username);
         if (account == null || !await _authService.ValidatePasswordAsync(account, request.Password))
         {
-            return Unauthorized(new { error = "Invalid username or password" });
+            return Unauthorized(new { Error = "Invalid username or password" });
         }
 
         var userToken = await _authService.CreateTokenAsync(account);
@@ -114,13 +114,13 @@ public class AuthController : ControllerBase
         var token = GetTokenFromHeader();
         if (string.IsNullOrEmpty(token))
         {
-            return Unauthorized(new { error = "Missing authentication token" });
+            return Unauthorized(new { Error = "Missing authentication token" });
         }
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
         if (!isValid || account == null || account.UserName != request.Username)
         {
-            return Unauthorized(new { error = "Invalid token or token does not match username" });
+            return Unauthorized(new { Error = "Invalid token or token does not match username" });
         }
 
         if (account.Type == UserType.Root)
@@ -132,7 +132,7 @@ public class AuthController : ControllerBase
         await _authService.DeleteAccountAsync(account);
 
         _logger.LogInformation("User deleted their account: {Username}", request.Username);
-        return Ok(new { message = "Account deleted successfully" });
+        return Ok(new { Message = "Account deleted successfully" });
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ public class AuthController : ControllerBase
         var token = GetTokenFromHeader();
         if (string.IsNullOrEmpty(token))
         {
-            return Unauthorized(new { error = "Missing authentication token" });
+            return Unauthorized(new { Error = "Missing authentication token" });
         }
 
         var tokenEntity = await _context.Tokens
@@ -156,7 +156,7 @@ public class AuthController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
-        return Ok(new { message = "Logged out successfully" });
+        return Ok(new { Message = "Logged out successfully" });
     }
 
     private string? GetTokenFromHeader() =>

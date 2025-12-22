@@ -1,12 +1,12 @@
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace OpenBioCardServer.Models.DTOs.Classic;
 
 public class ClassicSystemSettingsResponse
 {
-    [JsonPropertyName("title")]
+    [JsonProperty("title")]
     public string Title { get; set; } = string.Empty;
     
-    [JsonPropertyName("logo")]
+    [JsonProperty("logo")]
     public string Logo { get; set; } = string.Empty;
 }

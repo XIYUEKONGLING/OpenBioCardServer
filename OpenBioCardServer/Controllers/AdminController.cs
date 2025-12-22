@@ -38,7 +38,7 @@ public class AdminController : ControllerBase
         
         if (!isValid || account == null)
         {
-            return Unauthorized(new { error = "Invalid token" });
+            return Unauthorized(new { Error = "Invalid token" });
         }
 
         if (!await _authService.HasAdminPermissionAsync(account))
@@ -48,8 +48,8 @@ public class AdminController : ControllerBase
 
         return Ok(new 
         { 
-            success = true, 
-            type = account.Type.ToString().ToLower() 
+            Success = true, 
+            Type = account.Type.ToString().ToLower() 
         });
     }
 
@@ -63,7 +63,7 @@ public class AdminController : ControllerBase
         var result = await ValidateAdminTokenAsync(token); 
         if (!result.isValid)
         {
-            return Unauthorized(new { error = "Invalid token or insufficient permissions" });
+            return Unauthorized(new { Error = "Invalid token or insufficient permissions" });
         }
 
         var users = await _context.Accounts
@@ -93,17 +93,17 @@ public class AdminController : ControllerBase
         
             if (!isValid || account == null)
             {
-                return Unauthorized(new { error = "Invalid token or insufficient permissions" });
+                return Unauthorized(new { Error = "Invalid token or insufficient permissions" });
             }
 
             if (!Enum.TryParse<UserType>(request.Type, true, out var userType) || userType == UserType.Root)
             {
-                return BadRequest(new { error = "Invalid user type" });
+                return BadRequest(new { Error = "Invalid user type" });
             }
 
             if (await _authService.UsernameExistsAsync(request.NewUsername))
             {
-                return Conflict(new { error = "Username already exists" });
+                return Conflict(new { Error = "Username already exists" });
             }
 
             var newAccount = await _authService.CreateAccountAsync(request.NewUsername, request.Password, userType);
@@ -122,7 +122,7 @@ public class AdminController : ControllerBase
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Error creating new user");
-            return StatusCode(500, new { error = "User creation failed" });
+            return StatusCode(500, new { Error = "User creation failed" });
         }
     }
 
@@ -137,18 +137,18 @@ public class AdminController : ControllerBase
         
         if (!isValid || adminAccount == null)
         {
-            return Unauthorized(new { error = "Invalid token or insufficient permissions" });
+            return Unauthorized(new { Error = "Invalid token or insufficient permissions" });
         }
 
         if (adminAccount.UserName == username)
         {
-            return BadRequest(new { error = "Cannot delete your own account" });
+            return BadRequest(new { Error = "Cannot delete your own account" });
         }
 
         var targetAccount = await _authService.FindAccountByUsernameAsync(username);
         if (targetAccount == null)
         {
-            return NotFound(new { error = "User not found" });
+            return NotFound(new { Error = "User not found" });
         }
 
         if (targetAccount.Type == UserType.Root)
@@ -162,7 +162,7 @@ public class AdminController : ControllerBase
         _logger.LogInformation("Admin {AdminUser} deleted user: {TargetUser}", 
             adminAccount.UserName, username);
 
-        return Ok(new { message = "User deleted successfully" });
+        return Ok(new { Message = "User deleted successfully" });
     }
 
     private async Task<(bool isValid, Account? account)> ValidateAdminTokenAsync(string? token)
