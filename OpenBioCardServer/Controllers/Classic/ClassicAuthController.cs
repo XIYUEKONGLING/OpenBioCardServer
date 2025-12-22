@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using OpenBioCardServer.Constants;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Models.DTOs.Classic;
+using OpenBioCardServer.Models.DTOs.Classic.Auth;
+using OpenBioCardServer.Models.DTOs.Classic.General;
 using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Services;
@@ -216,7 +218,7 @@ public class ClassicAuthController : ControllerBase
 
             _logger.LogInformation("User deleted their account: {Username}", request.Username);
 
-            return Ok(new ClassicErrorResponse("Account deleted successfully"));
+            return Ok(new ClassicOkResponse("Account deleted successfully"));
         }
         catch (Exception ex)
         {

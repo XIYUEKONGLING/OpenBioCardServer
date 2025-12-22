@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace OpenBioCardServer.Models.DTOs.Classic;
+namespace OpenBioCardServer.Models.DTOs.Classic.Auth;
 
 public class ClassicSignInRequest
 {

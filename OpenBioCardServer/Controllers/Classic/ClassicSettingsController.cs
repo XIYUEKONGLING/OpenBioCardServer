@@ -7,6 +7,9 @@ using OpenBioCardServer.Constants;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Interfaces;
 using OpenBioCardServer.Models.DTOs.Classic;
+using OpenBioCardServer.Models.DTOs.Classic.Admin;
+using OpenBioCardServer.Models.DTOs.Classic.General;
+using OpenBioCardServer.Models.DTOs.Classic.Settings;
 using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Services;
@@ -183,7 +186,7 @@ public class ClassicSettingsController : ControllerBase
 
             _logger.LogInformation("Admin {Username} updated system settings", request.Username);
 
-            return Ok(new { success = true });
+            return Ok(new ClassicSuccessResponse(true));
         }
         catch (Exception ex)
         {

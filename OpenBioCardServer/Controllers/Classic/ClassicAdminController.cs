@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using OpenBioCardServer.Constants;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Models.DTOs.Classic;
+using OpenBioCardServer.Models.DTOs.Classic.Admin;
+using OpenBioCardServer.Models.DTOs.Classic.General;
 using OpenBioCardServer.Models.Entities;
 using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Services;
@@ -56,10 +58,10 @@ public class ClassicAdminController : ControllerBase
                 return StatusCode(403, new ClassicErrorResponse("Insufficient permissions"));
             }
 
-            return Ok(new 
+            return Ok(new ClassicCheckPermissionResponse
             { 
-                success = true, 
-                type = account.Type.ToString().ToLower() 
+                Success = true, 
+                Type = account.Type.ToString().ToLower() 
             });
         }
         catch (Exception ex)
@@ -210,10 +212,10 @@ public class ClassicAdminController : ControllerBase
             _logger.LogInformation("Admin {AdminUser} created new user: {NewUser} (Type: {Type})", 
                 request.Username, request.NewUsername, userType);
 
-            return Ok(new 
+            return Ok(new ClassicCreateUserResponse
             { 
-                message = "User created", 
-                token = newToken 
+                Message = "User created", 
+                Token = newToken 
             });
         }
         catch (Exception ex)
@@ -278,7 +280,7 @@ public class ClassicAdminController : ControllerBase
             _logger.LogInformation("Admin {AdminUser} deleted user: {TargetUser}", 
                 request.Username, targetUsername);
 
-            return Ok(new { message = "User deleted" });
+            return Ok(new ClassicOkResponse("User deleted"));
         }
         catch (Exception ex)
         {

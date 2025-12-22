@@ -1,8 +1,8 @@
 using Newtonsoft.Json;
 
-namespace OpenBioCardServer.Models.DTOs.Classic;
+namespace OpenBioCardServer.Models.DTOs.Classic.Profile;
 
-public class ClassicImportExportDto
+public class ClassicUserImportDto
 {
     [JsonProperty("user")]
     public ClassicUserExportDto User { get; set; } = new();

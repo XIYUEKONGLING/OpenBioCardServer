@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using OpenBioCardServer.Models.DTOs.Classic;
+using OpenBioCardServer.Models.DTOs.Classic.General;
+using OpenBioCardServer.Models.DTOs.Classic.Profile;
 using OpenBioCardServer.Services;
 
 namespace OpenBioCardServer.Controllers.Classic;
@@ -80,7 +82,7 @@ public class ClassicUserController : ControllerBase
                 return NotFound(new ClassicErrorResponse("Profile not found"));
             }
 
-            return Ok(new { success = true });
+            return Ok(new ClassicSuccessResponse(true));
         }
         catch (Exception)
         {
@@ -135,7 +137,7 @@ public class ClassicUserController : ControllerBase
     /// Import user data (requires authentication)
     /// </summary>
     [HttpPost("{username}/import")]
-    public async Task<IActionResult> ImportData(string username, [FromBody] ClassicImportExportDto request)
+    public async Task<IActionResult> ImportData(string username, [FromBody] ClassicUserImportDto request)
     {
         var token = GetTokenFromHeader();
         
@@ -165,7 +167,7 @@ public class ClassicUserController : ControllerBase
                 return BadRequest(new ClassicErrorResponse("Import failed or username mismatch"));
             }
 
-            return Ok(new { success = true });
+            return Ok(new ClassicSuccessResponse(true));
         }
         catch (Exception ex)
         {

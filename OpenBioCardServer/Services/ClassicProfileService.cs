@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenBioCardServer.Constants;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Models.DTOs.Classic;
+using OpenBioCardServer.Models.DTOs.Classic.Profile;
 using OpenBioCardServer.Utilities.Mappers;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -51,7 +52,7 @@ public class ClassicProfileService
     /// <summary>
     /// 获取用户完整导出数据 (User + Profile)
     /// </summary>
-    public async Task<ClassicImportExportDto?> GetExportDataAsync(string username, string currentToken)
+    public async Task<ClassicUserImportDto?> GetExportDataAsync(string username, string currentToken)
     {
         var account = await _context.Accounts
             .AsNoTracking()
@@ -62,7 +63,7 @@ public class ClassicProfileService
         var profileDto = await GetProfileAsync(username);
         if (profileDto == null) return null;
 
-        return new ClassicImportExportDto
+        return new ClassicUserImportDto
         {
             User = new ClassicUserExportDto
             {
@@ -77,7 +78,7 @@ public class ClassicProfileService
     /// <summary>
     /// 导入用户数据 (主要更新 Profile)
     /// </summary>
-    public async Task<bool> ImportDataAsync(string username, ClassicImportExportDto data)
+    public async Task<bool> ImportDataAsync(string username, ClassicUserImportDto data)
     {
         // 验证导入的数据是否属于当前用户
         if (!string.Equals(data.User.Username, username, StringComparison.OrdinalIgnoreCase))

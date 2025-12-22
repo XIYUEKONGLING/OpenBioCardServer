@@ -1,8 +1,8 @@
 using Newtonsoft.Json;
 
-namespace OpenBioCardServer.Models.DTOs.Classic;
+namespace OpenBioCardServer.Models.DTOs.Classic.Auth;
 
-public class ClassicAdminRequest
+public class ClassicDeleteRequest
 {
     [JsonProperty("username")]
     public string Username { get; set; } = string.Empty;
