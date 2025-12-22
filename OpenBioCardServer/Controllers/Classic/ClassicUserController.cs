@@ -52,7 +52,7 @@ public class ClassicUserController : ControllerBase
     [HttpPost("{username}")]
     public async Task<IActionResult> UpdateProfile(string username, [FromBody] ClassicProfile request)
     {
-        var token = Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "");
+        var token = GetTokenFromHeader();
         
         if (string.IsNullOrEmpty(token))
         {
@@ -84,8 +84,98 @@ public class ClassicUserController : ControllerBase
         }
         catch (Exception)
         {
-            // Exception is already logged in the service
             return StatusCode(500, new { error = "Profile update failed" });
         }
+    }
+
+    /// <summary>
+    /// Export user data (requires authentication)
+    /// </summary>
+    [HttpGet("{username}/export")]
+    public async Task<IActionResult> ExportData(string username)
+    {
+        var token = GetTokenFromHeader();
+        
+        if (string.IsNullOrEmpty(token))
+        {
+            return Unauthorized(new { error = "Missing authentication token" });
+        }
+
+        var (isValid, account) = await _authService.ValidateTokenAsync(token);
+
+        if (!isValid || account == null)
+        {
+            return Unauthorized(new { error = "Invalid token" });
+        }
+
+        if (account.UserName != username)
+        {
+            return Unauthorized(new { error = "Token does not match username" });
+        }
+
+        try
+        {
+            var exportData = await _profileService.GetExportDataAsync(username, token);
+            
+            if (exportData == null)
+            {
+                return NotFound(new { error = "User data not found" });
+            }
+
+            return Ok(exportData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting data for user: {Username}", username);
+            return StatusCode(500, new { error = "Export failed" });
+        }
+    }
+
+    /// <summary>
+    /// Import user data (requires authentication)
+    /// </summary>
+    [HttpPost("{username}/import")]
+    public async Task<IActionResult> ImportData(string username, [FromBody] ClassicImportExportDto request)
+    {
+        var token = GetTokenFromHeader();
+        
+        if (string.IsNullOrEmpty(token))
+        {
+            return Unauthorized(new { error = "Missing authentication token" });
+        }
+
+        var (isValid, account) = await _authService.ValidateTokenAsync(token);
+
+        if (!isValid || account == null)
+        {
+            return Unauthorized(new { error = "Invalid token" });
+        }
+
+        if (account.UserName != username)
+        {
+            return Unauthorized(new { error = "Token does not match username" });
+        }
+
+        try
+        {
+            var success = await _profileService.ImportDataAsync(username, request);
+            
+            if (!success)
+            {
+                return BadRequest(new { error = "Import failed or username mismatch" });
+            }
+
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error importing data for user: {Username}", username);
+            return StatusCode(500, new { error = "Import failed" });
+        }
+    }
+
+    private string? GetTokenFromHeader()
+    {
+        return Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "");
     }
 }

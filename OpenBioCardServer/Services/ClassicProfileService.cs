@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using OpenBioCardServer.Data;
-using OpenBioCardServer.Interfaces;
 using OpenBioCardServer.Models.DTOs.Classic;
 using OpenBioCardServer.Utilities.Mappers;
 using ZiggyCreatures.Caching.Fusion;
@@ -46,9 +45,51 @@ public class ClassicProfileService
                     .Include(p => p.WorkExperiences)
                     .Include(p => p.SchoolExperiences)
                     .Include(p => p.Gallery)
-                    .FirstOrDefaultAsync(p => p.Username == username, token); // 传入 token
+                    .FirstOrDefaultAsync(p => p.Username == username, token);
                 return profile == null ? null : ClassicMapper.ToClassicProfile(profile);
             });
+    }
+
+    /// <summary>
+    /// 获取用户完整导出数据 (User + Profile)
+    /// </summary>
+    public async Task<ClassicImportExportDto?> GetExportDataAsync(string username, string currentToken)
+    {
+        var account = await _context.Accounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.UserName == username);
+
+        if (account == null) return null;
+
+        var profileDto = await GetProfileAsync(username);
+        if (profileDto == null) return null;
+
+        return new ClassicImportExportDto
+        {
+            User = new ClassicUserExportDto
+            {
+                Username = account.UserName,
+                Type = account.Type.ToString().ToLowerInvariant(),
+                Token = currentToken
+            },
+            Profile = profileDto
+        };
+    }
+
+    /// <summary>
+    /// 导入用户数据 (主要更新 Profile)
+    /// </summary>
+    public async Task<bool> ImportDataAsync(string username, ClassicImportExportDto data)
+    {
+        // 验证导入的数据是否属于当前用户
+        if (!string.Equals(data.User.Username, username, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Import username mismatch. Target: {Target}, Import: {Import}", 
+                username, data.User.Username);
+            return false;
+        }
+
+        return await UpdateProfileAsync(username, data.Profile);
     }
 
     /// <summary>
