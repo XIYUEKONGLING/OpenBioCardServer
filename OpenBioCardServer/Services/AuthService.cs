@@ -53,7 +53,7 @@ public class AuthService
         return string.IsNullOrEmpty(rootUsername) 
             ? null 
             : await _context.Accounts
-                .FirstOrDefaultAsync(a => a.UserName == rootUsername && a.Role == UserRole.Root);
+                .FirstOrDefaultAsync(a => a.AccountName == rootUsername && a.Role == AccountRole.Root);
     }
 
     public async Task<string> CreateTokenAsync(Account account)
@@ -82,7 +82,7 @@ public class AuthService
         {
             TokenValue = tokenValue,
             AccountId = account.Id,
-            DeviceInfo = account.Role == UserRole.Root ? "Root Login" : null,
+            DeviceInfo = account.Role == AccountRole.Root ? "Root Login" : null,
             ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
 
@@ -94,22 +94,22 @@ public class AuthService
 
 
     public async Task<bool> HasAdminPermissionAsync(Account account) =>
-        account.Role == UserRole.Admin || account.Role == UserRole.Root;
+        account.Role == AccountRole.Admin || account.Role == AccountRole.Root;
 
     public async Task<Account?> FindAccountByUsernameAsync(string username) =>
         await _context.Accounts
-            .FirstOrDefaultAsync(a => a.UserName == username);
+            .FirstOrDefaultAsync(a => a.AccountName == username);
 
     public async Task<bool> UsernameExistsAsync(string username) =>
-        await _context.Accounts.AnyAsync(a => a.UserName == username);
+        await _context.Accounts.AnyAsync(a => a.AccountName == username);
 
-    public async Task<Account> CreateAccountAsync(string username, string password, UserRole role)
+    public async Task<Account> CreateAccountAsync(string username, string password, AccountRole role)
     {
         var (hash, salt) = PasswordHasher.HashPassword(password);
         
         var account = new Account
         {
-            UserName = username,
+            AccountName = username,
             PasswordHash = hash,
             PasswordSalt = salt,
             Role = role

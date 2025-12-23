@@ -52,19 +52,19 @@ public class ClassicAuthController : ControllerBase
             }
 
             // Check if username already exists
-            if (await _context.Accounts.AnyAsync(a => a.UserName == request.Username))
+            if (await _context.Accounts.AnyAsync(a => a.AccountName == request.Username))
             {
                 return Conflict(new ClassicErrorResponse("Username already exists"));
             }
 
             // Validate and parse user type
-            if (!Enum.TryParse<UserRole>(request.Type, true, out var userType))
+            if (!Enum.TryParse<AccountRole>(request.Type, true, out var userType))
             {
                 return BadRequest(new ClassicErrorResponse("Invalid user type"));
             }
 
             // Cannot create root users via signup
-            if (userType == UserRole.Root)
+            if (userType == AccountRole.Root)
             {
                 return StatusCode(403, new ClassicErrorResponse("Cannot create root users"));
             }
@@ -73,7 +73,7 @@ public class ClassicAuthController : ControllerBase
             var (hash, salt) = PasswordHasher.HashPassword(request.Password);
             var account = new Account
             {
-                UserName = request.Username,
+                AccountName = request.Username,
                 PasswordHash = hash,
                 PasswordSalt = salt,
                 Role = userType
@@ -144,7 +144,7 @@ public class ClassicAuthController : ControllerBase
 
             // 查询账户
             var account = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.UserName == request.Username);
+                .FirstOrDefaultAsync(a => a.AccountName == request.Username);
 
             // 账户不存在
             if (account == null)
@@ -167,7 +167,7 @@ public class ClassicAuthController : ControllerBase
             await _context.SaveChangesAsync();
 
             // 记录日志（区分Root和普通用户）
-            if (account.Role == UserRole.Root)
+            if (account.Role == AccountRole.Root)
             {
                 _logger.LogInformation("Root user logged in");
             }
@@ -201,13 +201,13 @@ public class ClassicAuthController : ControllerBase
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
-            if (account.UserName != request.Username)
+            if (account.AccountName != request.Username)
             {
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
             // Root account cannot be deleted
-            if (account.Role == UserRole.Root)
+            if (account.Role == AccountRole.Root)
             {
                 return StatusCode(403, new ClassicErrorResponse("Cannot delete root account"));
             }

@@ -67,10 +67,10 @@ public class AdminController : ControllerBase
         }
 
         var users = await _context.Accounts
-            .Where(a => a.Role != UserRole.Root)
+            .Where(a => a.Role != AccountRole.Root)
             .Select(a => new UserInfoDto
             {
-                Username = a.UserName,
+                Username = a.AccountName,
                 Type = a.Role.ToString().ToLower()
             })
             .ToListAsync();
@@ -96,7 +96,7 @@ public class AdminController : ControllerBase
                 return Unauthorized(new { Error = "Invalid token or insufficient permissions" });
             }
 
-            if (!Enum.TryParse<UserRole>(request.Type, true, out var userType) || userType == UserRole.Root)
+            if (!Enum.TryParse<AccountRole>(request.Type, true, out var userType) || userType == AccountRole.Root)
             {
                 return BadRequest(new { Error = "Invalid user type" });
             }
@@ -114,7 +114,7 @@ public class AdminController : ControllerBase
             await transaction.CommitAsync();
 
             _logger.LogInformation("Admin {AdminUser} created new user: {NewUser} (Type: {Type})", 
-                account.UserName, request.NewUsername, userType);
+                account.AccountName, request.NewUsername, userType);
 
             return Ok(new TokenResponse { Token = newToken });
         }
@@ -140,7 +140,7 @@ public class AdminController : ControllerBase
             return Unauthorized(new { Error = "Invalid token or insufficient permissions" });
         }
 
-        if (adminAccount.UserName == username)
+        if (adminAccount.AccountName == username)
         {
             return BadRequest(new { Error = "Cannot delete your own account" });
         }
@@ -151,7 +151,7 @@ public class AdminController : ControllerBase
             return NotFound(new { Error = "User not found" });
         }
 
-        if (targetAccount.Role == UserRole.Root)
+        if (targetAccount.Role == AccountRole.Root)
         {
             return Forbid("Cannot delete root account");
         }
@@ -160,7 +160,7 @@ public class AdminController : ControllerBase
         await _authService.DeleteAccountAsync(targetAccount);
 
         _logger.LogInformation("Admin {AdminUser} deleted user: {TargetUser}", 
-            adminAccount.UserName, username);
+            adminAccount.AccountName, username);
 
         return Ok(new { Message = "User deleted successfully" });
     }

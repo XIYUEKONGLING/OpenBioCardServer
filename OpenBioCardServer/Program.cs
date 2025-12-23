@@ -413,17 +413,17 @@ public class Program
         using var transaction = await context.Database.BeginTransactionAsync();
         try
         {
-            var rootAccount = await context.Accounts.FirstOrDefaultAsync(a => a.UserName == authSettings.RootUsername);
+            var rootAccount = await context.Accounts.FirstOrDefaultAsync(a => a.AccountName == authSettings.RootUsername);
 
             if (rootAccount == null)
             {
                 var (hash, salt) = PasswordHasher.HashPassword(authSettings.RootPassword);
                 rootAccount = new Account
                 {
-                    UserName = authSettings.RootUsername,
+                    AccountName = authSettings.RootUsername,
                     PasswordHash = hash,
                     PasswordSalt = salt,
-                    Role = UserRole.Root
+                    Role = AccountRole.Root
                 };
                 context.Accounts.Add(rootAccount);
                 await context.SaveChangesAsync();

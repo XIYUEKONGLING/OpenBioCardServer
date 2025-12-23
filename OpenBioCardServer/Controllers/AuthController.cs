@@ -47,12 +47,12 @@ public class AuthController : ControllerBase
                 return BadRequest(new { Error = "Missing required fields" });
             }
 
-            if (!Enum.TryParse<UserRole>(request.UserType, true, out var userType))
+            if (!Enum.TryParse<AccountRole>(request.UserType, true, out var userType))
             {
                 return BadRequest(new { Error = "Invalid user type" });
             }
 
-            if (userType == UserRole.Root)
+            if (userType == AccountRole.Root)
             {
                 return Forbid("Cannot create root users");
             }
@@ -118,12 +118,12 @@ public class AuthController : ControllerBase
         }
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
-        if (!isValid || account == null || account.UserName != request.Username)
+        if (!isValid || account == null || account.AccountName != request.Username)
         {
             return Unauthorized(new { Error = "Invalid token or token does not match username" });
         }
 
-        if (account.Role == UserRole.Root)
+        if (account.Role == AccountRole.Root)
         {
             return Forbid("Cannot delete root account");
         }

@@ -115,7 +115,7 @@ public class ProfileController : ControllerBase
         }
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
-        return (isValid && account != null && account.UserName == username, account);
+        return (isValid && account != null && account.AccountName == username, account);
     }
 
     private string? GetTokenFromHeader() =>

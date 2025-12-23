@@ -49,7 +49,7 @@ public class ClassicAdminController : ControllerBase
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
-            if (account.UserName != request.Username)
+            if (account.AccountName != request.Username)
             {
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
@@ -106,7 +106,7 @@ public class ClassicAdminController : ControllerBase
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
-            if (account.UserName != username)
+            if (account.AccountName != username)
             {
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
@@ -118,10 +118,10 @@ public class ClassicAdminController : ControllerBase
 
             // Get all non-root users
             var users = await _context.Accounts
-                .Where(a => a.Role != UserRole.Root)
+                .Where(a => a.Role != AccountRole.Root)
                 .Select(a => new ClassicUserInfo
                 {
-                    Username = a.UserName,
+                    Username = a.AccountName,
                     Type = a.Role.ToString().ToLower()
                 })
                 .ToListAsync();
@@ -152,7 +152,7 @@ public class ClassicAdminController : ControllerBase
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
-            if (account.UserName != request.Username)
+            if (account.AccountName != request.Username)
             {
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
@@ -163,19 +163,19 @@ public class ClassicAdminController : ControllerBase
             }
 
             // Validate new user type
-            if (!Enum.TryParse<UserRole>(request.Type, true, out var userType))
+            if (!Enum.TryParse<AccountRole>(request.Type, true, out var userType))
             {
                 return BadRequest(new ClassicErrorResponse("Invalid user type"));
             }
 
             // Cannot create root users
-            if (userType == UserRole.Root)
+            if (userType == AccountRole.Root)
             {
                 return StatusCode(403, new ClassicErrorResponse("Cannot create root users"));
             }
 
             // Check if username already exists
-            if (await _context.Accounts.AnyAsync(a => a.UserName == request.NewUsername))
+            if (await _context.Accounts.AnyAsync(a => a.AccountName == request.NewUsername))
             {
                 return Conflict(new ClassicErrorResponse("Username already exists"));
             }
@@ -184,7 +184,7 @@ public class ClassicAdminController : ControllerBase
             var (hash, salt) = PasswordHasher.HashPassword(request.Password);
             var newAccount = new Account
             {
-                UserName = request.NewUsername,
+                AccountName = request.NewUsername,
                 PasswordHash = hash,
                 PasswordSalt = salt,
                 Role = userType
@@ -242,7 +242,7 @@ public class ClassicAdminController : ControllerBase
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
-            if (account.UserName != request.Username)
+            if (account.AccountName != request.Username)
             {
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
@@ -253,13 +253,13 @@ public class ClassicAdminController : ControllerBase
             }
 
             // Cannot delete self
-            if (account.UserName == targetUsername)
+            if (account.AccountName == targetUsername)
             {
                 return StatusCode(403, new ClassicErrorResponse("Cannot delete your own account"));
             }
 
             var targetAccount = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.UserName == targetUsername);
+                .FirstOrDefaultAsync(a => a.AccountName == targetUsername);
 
             if (targetAccount == null)
             {
@@ -267,7 +267,7 @@ public class ClassicAdminController : ControllerBase
             }
 
             // Cannot delete root account
-            if (targetAccount.Role == UserRole.Root)
+            if (targetAccount.Role == AccountRole.Root)
             {
                 return StatusCode(403, new ClassicErrorResponse("Cannot delete root account"));
             }

@@ -1,6 +1,6 @@
 namespace OpenBioCardServer.Models.Enums;
 
-public enum UserRole
+public enum AccountRole
 {
     User,
     Admin,

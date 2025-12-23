@@ -64,7 +64,7 @@ public class ClassicUserController : ControllerBase
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
 
-        if (!isValid || account == null || account.UserName != username)
+        if (!isValid || account == null || account.AccountName != username)
             return Unauthorized(new ClassicErrorResponse("Invalid token"));
 
         try
@@ -96,7 +96,7 @@ public class ClassicUserController : ControllerBase
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
 
-        if (!isValid || account == null || account.UserName != username)
+        if (!isValid || account == null || account.AccountName != username)
             return Unauthorized(new ClassicErrorResponse("Invalid token"));
 
         try
@@ -128,7 +128,7 @@ public class ClassicUserController : ControllerBase
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
 
-        if (!isValid || account == null || account.UserName != username)
+        if (!isValid || account == null || account.AccountName != username)
             return Unauthorized(new ClassicErrorResponse("Invalid token"));
 
         try
@@ -160,7 +160,7 @@ public class ClassicUserController : ControllerBase
 
         var (isValid, account) = await _authService.ValidateTokenAsync(token);
 
-        if (!isValid || account == null || account.UserName != username)
+        if (!isValid || account == null || account.AccountName != username)
             return Unauthorized(new ClassicErrorResponse("Invalid token"));
 
         try

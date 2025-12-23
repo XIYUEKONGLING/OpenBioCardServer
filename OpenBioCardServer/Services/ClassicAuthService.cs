@@ -50,7 +50,7 @@ public class ClassicAuthService
             return null;
 
         return await _context.Accounts
-            .FirstOrDefaultAsync(a => a.UserName == rootUsername && a.Role == UserRole.Root);
+            .FirstOrDefaultAsync(a => a.AccountName == rootUsername && a.Role == AccountRole.Root);
     }
 
     public async Task<string> CreateTokenAsync(Account account)
@@ -79,7 +79,7 @@ public class ClassicAuthService
         {
             TokenValue = tokenValue,
             AccountId = account.Id,
-            DeviceInfo = account.Role == UserRole.Root ? "Root Login" : null,
+            DeviceInfo = account.Role == AccountRole.Root ? "Root Login" : null,
             ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
 
@@ -90,5 +90,5 @@ public class ClassicAuthService
     }
 
     public async Task<bool> HasAdminPermissionAsync(Account account) =>
-        account.Role == UserRole.Admin || account.Role == UserRole.Root;
+        account.Role == AccountRole.Admin || account.Role == AccountRole.Root;
 }

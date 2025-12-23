@@ -56,7 +56,7 @@ public class ClassicProfileService
     {
         var account = await _context.Accounts
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.UserName == username);
+            .FirstOrDefaultAsync(a => a.AccountName == username);
 
         if (account == null) return null;
 
@@ -67,7 +67,7 @@ public class ClassicProfileService
         {
             User = new ClassicUserExportDto
             {
-                Username = account.UserName,
+                Username = account.AccountName,
                 Type = account.Role.ToString().ToLowerInvariant(),
                 Token = currentToken
             },

@@ -10,7 +10,7 @@ public class Account
     
     [Required]
     [MaxLength(64)]
-    public string UserName { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty; // Username
     
     [MaxLength(128)]
     public string EMail { get; set; } = string.Empty;
@@ -21,7 +21,7 @@ public class Account
     [MaxLength(256)]
     public string PasswordSalt { get; set; } = string.Empty;
 
-    public UserRole Role { get; set; } = UserRole.User;
+    public AccountRole Role { get; set; } = AccountRole.User;
     public AccountType Type { get; set; } = AccountType.Personal;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

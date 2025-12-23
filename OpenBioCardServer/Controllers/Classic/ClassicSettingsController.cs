@@ -88,7 +88,7 @@ public class ClassicSettingsController : ControllerBase
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
-            if (account.UserName != request.Username)
+            if (account.AccountName != request.Username)
             {
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
@@ -133,7 +133,7 @@ public class ClassicSettingsController : ControllerBase
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }
 
-            if (account.UserName != request.Username)
+            if (account.AccountName != request.Username)
             {
                 return Unauthorized(new ClassicErrorResponse("Invalid token"));
             }

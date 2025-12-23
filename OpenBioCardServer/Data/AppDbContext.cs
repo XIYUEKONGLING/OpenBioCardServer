@@ -35,7 +35,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Account>(entity =>
         {
             // Unique index on Username for fast lookup
-            entity.HasIndex(e => e.UserName).IsUnique();
+            entity.HasIndex(e => e.AccountName).IsUnique();
             
             // One-to-One with Profile
             entity.HasOne(e => e.Profile)

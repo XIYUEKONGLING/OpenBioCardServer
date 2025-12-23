@@ -5,8 +5,9 @@ namespace OpenBioCardServer.Models;
 public class Profile
 {
     public string UserName { get; set; } = string.Empty;
-    public UserRole  UserRole { get; set; } =  UserRole.User;
-    public AccountType UserType { get; set; } = AccountType.Personal;
+    
+    public AccountRole Role { get; set; } =  AccountRole.User;
+    public AccountType Type { get; set; } = AccountType.Personal;
     
     public Asset Avatar { get; set; } = new();
     public string? Nickname { get; set; }
