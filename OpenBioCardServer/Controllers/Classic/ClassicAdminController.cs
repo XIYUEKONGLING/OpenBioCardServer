@@ -198,6 +198,7 @@ public class ClassicAdminController : ControllerBase
             {
                 AccountId = newAccount.Id,
                 AccountName = request.NewUsername,
+                Language = null,
                 AvatarType = AssetType.Text,
                 AvatarText = "👤"
             };

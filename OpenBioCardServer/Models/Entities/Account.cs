@@ -28,6 +28,6 @@ public class Account
     public DateTime LastLogin { get; set; } = DateTime.UtcNow;
     
     // Navigation properties
-    public ProfileEntity? Profile { get; set; }
+    public ICollection<ProfileEntity> Profiles { get; set; } = new List<ProfileEntity>();
     public ICollection<Token> Tokens { get; set; } = new List<Token>();
 }

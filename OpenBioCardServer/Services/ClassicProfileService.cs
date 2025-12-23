@@ -44,7 +44,7 @@ public class ClassicProfileService
                     .Include(p => p.WorkExperiences)
                     .Include(p => p.SchoolExperiences)
                     .Include(p => p.Gallery)
-                    .FirstOrDefaultAsync(p => p.AccountName == username, token);
+                    .FirstOrDefaultAsync(p => p.AccountName == username && p.Language == null, token);
                 return profile == null ? null : ClassicMapper.ToClassicProfile(profile);
             });
     }
@@ -102,7 +102,7 @@ public class ClassicProfileService
         {
             var profile = await _context.Profiles
                 .AsTracking()
-                .FirstOrDefaultAsync(p => p.AccountName == username);
+                .FirstOrDefaultAsync(p => p.AccountName == username && p.Language == null);
 
             if (profile == null)
             {
@@ -187,7 +187,7 @@ public class ClassicProfileService
         {
             var profile = await _context.Profiles
                 .AsTracking()
-                .FirstOrDefaultAsync(p => p.AccountName == username);
+                .FirstOrDefaultAsync(p => p.AccountName == username && p.Language == null);
 
             if (profile == null)
             {

@@ -34,16 +34,13 @@ public class AppDbContext : DbContext
         // Account configuration
         modelBuilder.Entity<Account>(entity =>
         {
-            // Unique index on Username for fast lookup
             entity.HasIndex(e => e.AccountName).IsUnique();
             
-            // One-to-One with Profile
-            entity.HasOne(e => e.Profile)
+            entity.HasMany(e => e.Profiles)
                 .WithOne(e => e.Account)
-                .HasForeignKey<ProfileEntity>(e => e.AccountId)
+                .HasForeignKey(e => e.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
             
-            // One-to-Many with Tokens
             entity.HasMany(e => e.Tokens)
                 .WithOne(e => e.Account)
                 .HasForeignKey(e => e.AccountId)
@@ -64,7 +61,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ProfileEntity>(entity =>
         {
             // Unique index on Username (redundant with Account but useful)
-            entity.HasIndex(e => e.AccountName).IsUnique();
+            entity.HasIndex(e => new { e.AccountName, e.Language }).IsUnique();
             
             // One-to-Many relationships with all child entities
             entity.HasMany(e => e.Contacts)
