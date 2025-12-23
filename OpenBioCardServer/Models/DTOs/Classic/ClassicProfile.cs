@@ -60,4 +60,7 @@ public class ClassicProfile
     
     [JsonProperty("gallery")]
     public List<ClassicGalleryItem> Gallery { get; set; } = new();
+    
+    [JsonProperty("locales")]
+    public Dictionary<string, ClassicProfileLocale> Locales { get; set; } = new();
 }

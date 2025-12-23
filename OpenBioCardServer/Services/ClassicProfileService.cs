@@ -3,6 +3,8 @@ using OpenBioCardServer.Constants;
 using OpenBioCardServer.Data;
 using OpenBioCardServer.Models.DTOs.Classic;
 using OpenBioCardServer.Models.DTOs.Classic.Profile;
+using OpenBioCardServer.Models.Entities;
+using OpenBioCardServer.Models.Enums;
 using OpenBioCardServer.Utilities.Mappers;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -25,7 +27,7 @@ public class ClassicProfileService
     }
 
     /// <summary>
-    /// 获取用户 Profile
+    /// 获取用户 Profile (包含主档案及所有语言变体)
     /// </summary>
     public async Task<ClassicProfile?> GetProfileAsync(string username)
     {
@@ -35,7 +37,8 @@ public class ClassicProfileService
             cacheKey, 
             async (ctx, token) =>
             {
-                var profile = await _context.Profiles
+                // 1. 一次性拉取该用户的所有 Profile (主 + 多语言)
+                var profiles = await _context.Profiles
                     .AsNoTracking()
                     .AsSplitQuery()
                     .Include(p => p.Account)
@@ -45,8 +48,17 @@ public class ClassicProfileService
                     .Include(p => p.WorkExperiences)
                     .Include(p => p.SchoolExperiences)
                     .Include(p => p.Gallery)
-                    .FirstOrDefaultAsync(p => p.AccountName == username && p.Language == null, token);
-                return profile == null ? null : ClassicMapper.ToClassicProfile(profile);
+                    .Where(p => p.AccountName == username)
+                    .ToListAsync(token);
+
+                // 2. 分离主 Profile 和 语言变体
+                var mainProfile = profiles.FirstOrDefault(p => p.Language == null);
+                if (mainProfile == null) return null;
+
+                var localeProfiles = profiles.Where(p => p.Language != null).ToList();
+
+                // 3. 映射并返回 (Mapper 需支持 List<ProfileEntity>)
+                return ClassicMapper.ToClassicProfile(mainProfile, localeProfiles);
             });
     }
 
@@ -81,7 +93,6 @@ public class ClassicProfileService
     /// </summary>
     public async Task<bool> ImportDataAsync(string username, ClassicUserImportDto data)
     {
-        // 验证导入的数据是否属于当前用户
         if (!string.Equals(data.User.Username, username, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning("Import username mismatch. Target: {Target}, Import: {Import}", 
@@ -93,7 +104,8 @@ public class ClassicProfileService
     }
 
     /// <summary>
-    /// 更新用户 Profile
+    /// 全量更新用户主 Profile (Legacy/Full Replace)
+    /// 注意：此方法目前主要重置主语言数据，不处理 Locales 的全量替换以保护多语言数据
     /// </summary>
     public async Task<bool> UpdateProfileAsync(string username, ClassicProfile request)
     {
@@ -115,56 +127,13 @@ public class ClassicProfileService
             // 1. Update basic profile fields
             ClassicMapper.UpdateProfileFromClassic(profile, request);
 
-            // 2. Clear all existing collections efficiently
-            // Note: ExecuteDeleteAsync executes immediately against the DB
-            await _context.ContactItems.Where(c => c.ProfileId == profile.Id).ExecuteDeleteAsync();
-            await _context.SocialLinkItems.Where(s => s.ProfileId == profile.Id).ExecuteDeleteAsync();
-            await _context.ProjectItems.Where(p => p.ProfileId == profile.Id).ExecuteDeleteAsync();
-            await _context.WorkExperienceItems.Where(w => w.ProfileId == profile.Id).ExecuteDeleteAsync();
-            await _context.SchoolExperienceItems.Where(s => s.ProfileId == profile.Id).ExecuteDeleteAsync();
-            await _context.GalleryItems.Where(g => g.ProfileId == profile.Id).ExecuteDeleteAsync();
-
-            // 3. Add new collections from request
-            if (request.Contacts?.Any() == true)
-            {
-                var contacts = ClassicMapper.ToContactEntities(request.Contacts, profile.Id);
-                await _context.ContactItems.AddRangeAsync(contacts);
-            }
-
-            if (request.SocialLinks?.Any() == true)
-            {
-                var socialLinks = ClassicMapper.ToSocialLinkEntities(request.SocialLinks, profile.Id);
-                await _context.SocialLinkItems.AddRangeAsync(socialLinks);
-            }
-
-            if (request.Projects?.Any() == true)
-            {
-                var projects = ClassicMapper.ToProjectEntities(request.Projects, profile.Id);
-                await _context.ProjectItems.AddRangeAsync(projects);
-            }
-
-            if (request.WorkExperiences?.Any() == true)
-            {
-                var workExperiences = ClassicMapper.ToWorkExperienceEntities(request.WorkExperiences, profile.Id);
-                await _context.WorkExperienceItems.AddRangeAsync(workExperiences);
-            }
-
-            if (request.SchoolExperiences?.Any() == true)
-            {
-                var schoolExperiences = ClassicMapper.ToSchoolExperienceEntities(request.SchoolExperiences, profile.Id);
-                await _context.SchoolExperienceItems.AddRangeAsync(schoolExperiences);
-            }
-
-            if (request.Gallery?.Any() == true)
-            {
-                var gallery = ClassicMapper.ToGalleryEntities(request.Gallery, profile.Id);
-                await _context.GalleryItems.AddRangeAsync(gallery);
-            }
+            // 2. Clear and Re-add Collections (Full Replace Logic)
+            await ClearAllCollectionsAsync(profile.Id);
+            await AddCollectionsFromDtoAsync(profile.Id, request);
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            // 4. Invalidate Cache
             await _cache.RemoveAsync(CacheKeys.GetClassicProfileCacheKey(username));
             
             _logger.LogInformation("Profile updated successfully for user: {Username}", username);
@@ -174,12 +143,13 @@ public class ClassicProfileService
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Error updating profile for user: {Username}", username);
-            throw; // Re-throw to let controller handle the 500 response
+            throw;
         }
     }
     
     /// <summary>
     /// 增量更新用户 Profile (Smart Update)
+    /// 支持更新主 Profile 字段、集合以及多语言 Locales
     /// </summary>
     public async Task<bool> PatchProfileAsync(string username, ClassicProfilePatch patch)
     {
@@ -187,88 +157,56 @@ public class ClassicProfileService
 
         try
         {
-            var profile = await _context.Profiles
+            // 1. 获取主 Profile
+            var mainProfile = await _context.Profiles
                 .AsTracking()
                 .Include(p => p.Account)
                 .FirstOrDefaultAsync(p => p.AccountName == username && p.Language == null);
 
-            if (profile == null)
+            if (mainProfile == null)
             {
                 _logger.LogWarning("Attempted to patch non-existent profile: {Username}", username);
                 return false;
             }
 
-            // 1. Update basic profile fields (Only non-nulls)
-            ClassicMapper.UpdateProfileFromPatch(profile, patch);
+            // 2. 更新主 Profile 基础字段
+            ClassicMapper.UpdateProfileFromPatch(mainProfile, patch);
 
-            // 2. Handle Collections
-            // 逻辑：如果 Patch 中的集合为 null，则跳过（保持原样）。
-            // 如果 Patch 中的集合不为 null (即使是空列表)，则替换原有集合。
-
-            if (patch.Contacts != null)
+            // 3. 处理多语言 Locales (新增/更新)
+            if (patch.Locales != null)
             {
-                await _context.ContactItems.Where(c => c.ProfileId == profile.Id).ExecuteDeleteAsync();
-                if (patch.Contacts.Any())
+                var existingLocales = await _context.Profiles
+                    .AsTracking()
+                    .Where(p => p.AccountName == username && p.Language != null)
+                    .ToListAsync();
+
+                foreach (var (langCode, localeDto) in patch.Locales)
                 {
-                    var items = ClassicMapper.ToContactEntities(patch.Contacts, profile.Id);
-                    await _context.ContactItems.AddRangeAsync(items);
+                    var localeEntity = existingLocales.FirstOrDefault(p => p.Language == langCode);
+
+                    if (localeEntity == null)
+                    {
+                        // Create new locale profile
+                        localeEntity = new ProfileEntity
+                        {
+                            AccountId = mainProfile.AccountId,
+                            AccountName = mainProfile.AccountName,
+                            Language = langCode,
+                            AvatarType = AssetType.Text // Default
+                        };
+                        _context.Profiles.Add(localeEntity);
+                    }
+
+                    ClassicMapper.UpdateEntityFromLocale(localeEntity, localeDto);
                 }
             }
 
-            if (patch.SocialLinks != null)
-            {
-                await _context.SocialLinkItems.Where(s => s.ProfileId == profile.Id).ExecuteDeleteAsync();
-                if (patch.SocialLinks.Any())
-                {
-                    var items = ClassicMapper.ToSocialLinkEntities(patch.SocialLinks, profile.Id);
-                    await _context.SocialLinkItems.AddRangeAsync(items);
-                }
-            }
-
-            if (patch.Projects != null)
-            {
-                await _context.ProjectItems.Where(p => p.ProfileId == profile.Id).ExecuteDeleteAsync();
-                if (patch.Projects.Any())
-                {
-                    var items = ClassicMapper.ToProjectEntities(patch.Projects, profile.Id);
-                    await _context.ProjectItems.AddRangeAsync(items);
-                }
-            }
-
-            if (patch.WorkExperiences != null)
-            {
-                await _context.WorkExperienceItems.Where(w => w.ProfileId == profile.Id).ExecuteDeleteAsync();
-                if (patch.WorkExperiences.Any())
-                {
-                    var items = ClassicMapper.ToWorkExperienceEntities(patch.WorkExperiences, profile.Id);
-                    await _context.WorkExperienceItems.AddRangeAsync(items);
-                }
-            }
-
-            if (patch.SchoolExperiences != null)
-            {
-                await _context.SchoolExperienceItems.Where(s => s.ProfileId == profile.Id).ExecuteDeleteAsync();
-                if (patch.SchoolExperiences.Any())
-                {
-                    var items = ClassicMapper.ToSchoolExperienceEntities(patch.SchoolExperiences, profile.Id);
-                    await _context.SchoolExperienceItems.AddRangeAsync(items);
-                }
-            }
-
-            if (patch.Gallery != null)
-            {
-                await _context.GalleryItems.Where(g => g.ProfileId == profile.Id).ExecuteDeleteAsync();
-                if (patch.Gallery.Any())
-                {
-                    var items = ClassicMapper.ToGalleryEntities(patch.Gallery, profile.Id);
-                    await _context.GalleryItems.AddRangeAsync(items);
-                }
-            }
+            // 4. 处理集合 (Contacts, Projects 等)
+            await HandlePatchCollectionsAsync(mainProfile.Id, patch);
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            // 3. Invalidate Cache
             await _cache.RemoveAsync(CacheKeys.GetClassicProfileCacheKey(username));
             
             _logger.LogInformation("Profile patched successfully for user: {Username}", username);
@@ -280,5 +218,105 @@ public class ClassicProfileService
             _logger.LogError(ex, "Error patching profile for user: {Username}", username);
             throw;
         }
+    }
+
+    // === Private Helpers ===
+
+    /// <summary>
+    /// 处理 Patch 请求中的集合更新
+    /// 逻辑：如果 Patch 中的集合为 null，则跳过；如果不为 null，则全量替换该类型的集合。
+    /// </summary>
+    private async Task HandlePatchCollectionsAsync(Guid profileId, ClassicProfilePatch patch)
+    {
+        if (patch.Contacts != null)
+        {
+            await _context.ContactItems.Where(c => c.ProfileId == profileId).ExecuteDeleteAsync();
+            if (patch.Contacts.Any())
+            {
+                var items = ClassicMapper.ToContactEntities(patch.Contacts, profileId);
+                await _context.ContactItems.AddRangeAsync(items);
+            }
+        }
+
+        if (patch.SocialLinks != null)
+        {
+            await _context.SocialLinkItems.Where(s => s.ProfileId == profileId).ExecuteDeleteAsync();
+            if (patch.SocialLinks.Any())
+            {
+                var items = ClassicMapper.ToSocialLinkEntities(patch.SocialLinks, profileId);
+                await _context.SocialLinkItems.AddRangeAsync(items);
+            }
+        }
+
+        if (patch.Projects != null)
+        {
+            await _context.ProjectItems.Where(p => p.ProfileId == profileId).ExecuteDeleteAsync();
+            if (patch.Projects.Any())
+            {
+                var items = ClassicMapper.ToProjectEntities(patch.Projects, profileId);
+                await _context.ProjectItems.AddRangeAsync(items);
+            }
+        }
+
+        if (patch.WorkExperiences != null)
+        {
+            await _context.WorkExperienceItems.Where(w => w.ProfileId == profileId).ExecuteDeleteAsync();
+            if (patch.WorkExperiences.Any())
+            {
+                var items = ClassicMapper.ToWorkExperienceEntities(patch.WorkExperiences, profileId);
+                await _context.WorkExperienceItems.AddRangeAsync(items);
+            }
+        }
+
+        if (patch.SchoolExperiences != null)
+        {
+            await _context.SchoolExperienceItems.Where(s => s.ProfileId == profileId).ExecuteDeleteAsync();
+            if (patch.SchoolExperiences.Any())
+            {
+                var items = ClassicMapper.ToSchoolExperienceEntities(patch.SchoolExperiences, profileId);
+                await _context.SchoolExperienceItems.AddRangeAsync(items);
+            }
+        }
+
+        if (patch.Gallery != null)
+        {
+            await _context.GalleryItems.Where(g => g.ProfileId == profileId).ExecuteDeleteAsync();
+            if (patch.Gallery.Any())
+            {
+                var items = ClassicMapper.ToGalleryEntities(patch.Gallery, profileId);
+                await _context.GalleryItems.AddRangeAsync(items);
+            }
+        }
+    }
+
+    private async Task ClearAllCollectionsAsync(Guid profileId)
+    {
+        await _context.ContactItems.Where(c => c.ProfileId == profileId).ExecuteDeleteAsync();
+        await _context.SocialLinkItems.Where(s => s.ProfileId == profileId).ExecuteDeleteAsync();
+        await _context.ProjectItems.Where(p => p.ProfileId == profileId).ExecuteDeleteAsync();
+        await _context.WorkExperienceItems.Where(w => w.ProfileId == profileId).ExecuteDeleteAsync();
+        await _context.SchoolExperienceItems.Where(s => s.ProfileId == profileId).ExecuteDeleteAsync();
+        await _context.GalleryItems.Where(g => g.ProfileId == profileId).ExecuteDeleteAsync();
+    }
+
+    private async Task AddCollectionsFromDtoAsync(Guid profileId, ClassicProfile request)
+    {
+        if (request.Contacts?.Any() == true)
+            await _context.ContactItems.AddRangeAsync(ClassicMapper.ToContactEntities(request.Contacts, profileId));
+
+        if (request.SocialLinks?.Any() == true)
+            await _context.SocialLinkItems.AddRangeAsync(ClassicMapper.ToSocialLinkEntities(request.SocialLinks, profileId));
+
+        if (request.Projects?.Any() == true)
+            await _context.ProjectItems.AddRangeAsync(ClassicMapper.ToProjectEntities(request.Projects, profileId));
+
+        if (request.WorkExperiences?.Any() == true)
+            await _context.WorkExperienceItems.AddRangeAsync(ClassicMapper.ToWorkExperienceEntities(request.WorkExperiences, profileId));
+
+        if (request.SchoolExperiences?.Any() == true)
+            await _context.SchoolExperienceItems.AddRangeAsync(ClassicMapper.ToSchoolExperienceEntities(request.SchoolExperiences, profileId));
+
+        if (request.Gallery?.Any() == true)
+            await _context.GalleryItems.AddRangeAsync(ClassicMapper.ToGalleryEntities(request.Gallery, profileId));
     }
 }

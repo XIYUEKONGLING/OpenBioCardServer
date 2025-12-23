@@ -38,6 +38,70 @@ public static class ClassicMapper
         };
     }
     
+    public static ClassicProfile ToClassicProfile(ProfileEntity mainProfile, List<ProfileEntity> localeProfiles)
+    {
+        var dto = new ClassicProfile
+        {
+            Username = mainProfile.AccountName,
+            UserType = mainProfile.Account != null ? ToUserTypeString(mainProfile.Account.Type) : ToUserTypeString(AccountType.Personal),
+
+            Name = mainProfile.Nickname ?? string.Empty,
+            Pronouns = mainProfile.Pronouns ?? string.Empty,
+            Avatar = AssetToString(mainProfile.AvatarType, mainProfile.AvatarText, mainProfile.AvatarData),
+            Bio = mainProfile.Biography ?? string.Empty,
+            Location = mainProfile.Location ?? string.Empty,
+            Website = mainProfile.Website ?? string.Empty,
+            Background = mainProfile.BackgroundType.HasValue
+                ? AssetToString(mainProfile.BackgroundType.Value, mainProfile.BackgroundText, mainProfile.BackgroundData)
+                : string.Empty,
+            CurrentCompany = mainProfile.CurrentCompany ?? string.Empty,
+            CurrentCompanyLink = mainProfile.CurrentCompanyLink ?? string.Empty,
+            CurrentSchool = mainProfile.CurrentSchool ?? string.Empty,
+            CurrentSchoolLink = mainProfile.CurrentSchoolLink ?? string.Empty,
+
+            // Collections
+            Contacts = mainProfile.Contacts.Select(ToClassicContact).ToList(),
+            SocialLinks = mainProfile.SocialLinks.Select(ToClassicSocialLink).ToList(),
+            Projects = mainProfile.Projects.Select(ToClassicProject).ToList(),
+            WorkExperiences = mainProfile.WorkExperiences.Select(ToClassicWorkExperience).ToList(),
+            SchoolExperiences = mainProfile.SchoolExperiences.Select(ToClassicSchoolExperience).ToList(),
+            Gallery = mainProfile.Gallery.Select(ToClassicGalleryItem).ToList(),
+
+            // ⭐ Map Locales
+            Locales = new Dictionary<string, ClassicProfileLocale>()
+        };
+
+        foreach (var localeProfile in localeProfiles)
+        {
+            if (!string.IsNullOrEmpty(localeProfile.Language))
+            {
+                dto.Locales[localeProfile.Language] = ToClassicProfileLocale(localeProfile);
+            }
+        }
+
+        return dto;
+    }
+    
+    private static ClassicProfileLocale ToClassicProfileLocale(ProfileEntity entity)
+    {
+        return new ClassicProfileLocale
+        {
+            Name = entity.Nickname,
+            Pronouns = entity.Pronouns,
+            Avatar = AssetToString(entity.AvatarType, entity.AvatarText, entity.AvatarData),
+            Bio = entity.Biography,
+            Location = entity.Location,
+            Website = entity.Website,
+            Background = entity.BackgroundType.HasValue
+                ? AssetToString(entity.BackgroundType.Value, entity.BackgroundText, entity.BackgroundData)
+                : null,
+            CurrentCompany = entity.CurrentCompany,
+            CurrentCompanyLink = entity.CurrentCompanyLink,
+            CurrentSchool = entity.CurrentSchool,
+            CurrentSchoolLink = entity.CurrentSchoolLink
+        };
+    }
+    
     public static string AssetToString(AssetType type, string? text, byte[]? data) => type switch
     {
         AssetType.Text => text ?? string.Empty,
@@ -367,7 +431,48 @@ public static class ClassicMapper
 
         return null;
     }
+    
     // === Patch Update Logic ===
+    
+    public static void UpdateEntityFromLocale(ProfileEntity profile, ClassicProfileLocale localeDto)
+    {
+        if (localeDto.Name != null) profile.Nickname = localeDto.Name;
+        if (localeDto.Pronouns != null) profile.Pronouns = localeDto.Pronouns;
+        if (localeDto.Bio != null) profile.Biography = localeDto.Bio;
+        if (localeDto.Location != null) profile.Location = localeDto.Location;
+        if (localeDto.Website != null) profile.Website = localeDto.Website;
+
+        if (localeDto.CurrentCompany != null) profile.CurrentCompany = localeDto.CurrentCompany;
+        if (localeDto.CurrentCompanyLink != null) profile.CurrentCompanyLink = localeDto.CurrentCompanyLink;
+        if (localeDto.CurrentSchool != null) profile.CurrentSchool = localeDto.CurrentSchool;
+        if (localeDto.CurrentSchoolLink != null) profile.CurrentSchoolLink = localeDto.CurrentSchoolLink;
+
+        // Assets
+        if (localeDto.Avatar != null)
+        {
+            var (type, text, data) = ParseAsset(localeDto.Avatar);
+            profile.AvatarType = type;
+            profile.AvatarText = text;
+            profile.AvatarData = data;
+        }
+
+        if (localeDto.Background != null)
+        {
+            if (string.IsNullOrEmpty(localeDto.Background))
+            {
+                profile.BackgroundType = null;
+                profile.BackgroundText = null;
+                profile.BackgroundData = null;
+            }
+            else
+            {
+                var (type, text, data) = ParseAsset(localeDto.Background);
+                profile.BackgroundType = type;
+                profile.BackgroundText = text;
+                profile.BackgroundData = data;
+            }
+        }
+    }
 
     public static void UpdateProfileFromPatch(ProfileEntity profile, ClassicProfilePatch patch)
     {
