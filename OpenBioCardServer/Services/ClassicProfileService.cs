@@ -38,6 +38,7 @@ public class ClassicProfileService
                 var profile = await _context.Profiles
                     .AsNoTracking()
                     .AsSplitQuery()
+                    .Include(p => p.Account)
                     .Include(p => p.Contacts)
                     .Include(p => p.SocialLinks)
                     .Include(p => p.Projects)
@@ -102,6 +103,7 @@ public class ClassicProfileService
         {
             var profile = await _context.Profiles
                 .AsTracking()
+                .Include(p => p.Account)
                 .FirstOrDefaultAsync(p => p.AccountName == username && p.Language == null);
 
             if (profile == null)
@@ -187,6 +189,7 @@ public class ClassicProfileService
         {
             var profile = await _context.Profiles
                 .AsTracking()
+                .Include(p => p.Account)
                 .FirstOrDefaultAsync(p => p.AccountName == username && p.Language == null);
 
             if (profile == null)

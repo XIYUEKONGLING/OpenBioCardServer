@@ -14,6 +14,8 @@ public static class ClassicMapper
         return new ClassicProfile
         {
             Username = profile.AccountName,
+            UserType = profile.Account != null ? ToUserTypeString(profile.Account.Type) : ToUserTypeString(AccountType.Personal),
+            
             Name = profile.Nickname ?? string.Empty,
             Pronouns = profile.Pronouns ?? string.Empty,
             Avatar = AssetToString(profile.AvatarType, profile.AvatarText, profile.AvatarData),
@@ -178,6 +180,12 @@ public static class ClassicMapper
     public static void UpdateProfileFromClassic(ProfileEntity profile, ClassicProfile classic)
     {
         profile.AccountName = classic.Username;
+        
+        if (profile.Account != null)
+        {
+            profile.Account.Type = ParseUserType(classic.UserType);
+        }
+        
         profile.Nickname = classic.Name;
         profile.Pronouns = classic.Pronouns;
         
@@ -367,6 +375,12 @@ public static class ClassicMapper
         // 注意：如果前端传空字符串 ""，这里会更新为空字符串，符合预期（清空字段）
         
         if (patch.Username != null) profile.AccountName = patch.Username;
+        
+        if (patch.UserType != null && profile.Account != null)
+        {
+            profile.Account.Type = ParseUserType(patch.UserType);
+        }
+        
         if (patch.Name != null) profile.Nickname = patch.Name;
         if (patch.Pronouns != null) profile.Pronouns = patch.Pronouns;
 
@@ -405,4 +419,21 @@ public static class ClassicMapper
         if (patch.CurrentSchool != null) profile.CurrentSchool = patch.CurrentSchool;
         if (patch.CurrentSchoolLink != null) profile.CurrentSchoolLink = patch.CurrentSchoolLink;
     }
+    
+    // === Helpers for Account Type ===
+    private static string ToUserTypeString(AccountType type) => type switch
+    {
+        AccountType.Company => "company",
+        AccountType.Organization => "organization",
+        AccountType.Personal => "personal",
+        _ => "personal" // Default Unknown or others to personal
+    };
+    
+    private static AccountType ParseUserType(string? type) => type?.ToLowerInvariant() switch
+    {
+        "company" => AccountType.Company,
+        "organization" => AccountType.Organization,
+        "personal" => AccountType.Personal,
+        _ => AccountType.Personal // Default to Personal as requested
+    };
 }

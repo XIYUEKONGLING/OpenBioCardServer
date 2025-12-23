@@ -11,6 +11,9 @@ public class ClassicProfilePatch
     [JsonProperty("username")]
     public string? Username { get; set; }
     
+    [JsonProperty("userType")]
+    public string? UserType { get; set; }
+    
     [JsonProperty("name")]
     public string? Name { get; set; }
     
@@ -44,10 +47,7 @@ public class ClassicProfilePatch
     [JsonProperty("currentSchoolLink")]
     public string? CurrentSchoolLink { get; set; }
     
-    // 集合类型：
-    // Null = 不更新
-    // Empty List [] = 清空列表
-    
+    // Collections...
     [JsonProperty("contacts")]
     public List<ClassicContact>? Contacts { get; set; }
     

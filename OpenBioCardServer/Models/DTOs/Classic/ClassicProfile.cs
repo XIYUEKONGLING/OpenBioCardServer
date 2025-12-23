@@ -7,6 +7,9 @@ public class ClassicProfile
     [JsonProperty("username")]
     public string Username { get; set; } = string.Empty;
     
+    [JsonProperty("userType")]
+    public string UserType { get; set; } = "personal";
+    
     [JsonProperty("name")]
     public string Name { get; set; } = string.Empty;
     
